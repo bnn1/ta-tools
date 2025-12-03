@@ -1,0 +1,41 @@
+{
+  "name": "ta-tools",
+  "version": "0.1.0",
+  "description": "Blazing fast technical analysis indicators powered by Rust/WASM",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "pkg"
+  ],
+  "scripts": {
+    "build:wasm": "wasm-pack build crates/ta-core --target nodejs --out-dir ../../pkg",
+    "build:ts": "tsc",
+    "build": "npm run build:wasm && npm run build:ts",
+    "test": "vitest",
+    "bench": "vitest bench"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "technical-analysis",
+    "trading",
+    "indicators",
+    "wasm",
+    "rust"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "fast-technical-indicators": "^1.1.4"
+  }
+}
