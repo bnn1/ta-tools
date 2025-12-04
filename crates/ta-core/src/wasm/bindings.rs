@@ -6,7 +6,8 @@ use wasm_bindgen::prelude::*;
 
 use crate::indicators::{
     Atr, AtrBar, AtrStream, BBands, BBandsOutput, BBandsStream, Ema, EmaStream, Macd,
-    MacdOutput, MacdStream, Rsi, RsiStream, Sma, SmaStream, Wma, WmaStream,
+    MacdOutput, MacdStream, Rsi, RsiStream, Sma, SmaStream, Stoch, StochBar, StochOutput,
+    StochStream, StochType, Wma, WmaStream,
 };
 use crate::traits::{Indicator, StreamingIndicator};
 
@@ -735,5 +736,315 @@ impl WasmAtrStream {
     #[wasm_bindgen(getter)]
     pub fn period(&self) -> usize {
         self.inner.period()
+    }
+}
+
+// ============================================================================
+// Stochastic Oscillator
+// ============================================================================
+
+/// Stochastic output returned to JavaScript.
+#[wasm_bindgen]
+pub struct WasmStochOutput {
+    k_val: f64,
+    d_val: f64,
+}
+
+#[wasm_bindgen]
+impl WasmStochOutput {
+    /// %K line value (0-100)
+    #[wasm_bindgen(getter)]
+    pub fn k(&self) -> f64 {
+        self.k_val
+    }
+
+    /// %D line value (0-100) - signal line
+    #[wasm_bindgen(getter)]
+    pub fn d(&self) -> f64 {
+        self.d_val
+    }
+}
+
+impl From<StochOutput> for WasmStochOutput {
+    fn from(output: StochOutput) -> Self {
+        Self {
+            k_val: output.k,
+            d_val: output.d,
+        }
+    }
+}
+
+/// Calculate Fast Stochastic for arrays of high, low, and close prices.
+///
+/// Returns an object with `k` and `d` arrays.
+#[wasm_bindgen(js_name = "stochFast")]
+pub fn stoch_fast_batch(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    k_period: usize,
+    d_period: usize,
+) -> Result<JsValue, JsError> {
+    let indicator =
+        Stoch::new(k_period, d_period, StochType::Fast).map_err(|e| JsError::new(&e.to_string()))?;
+    let results = indicator
+        .calculate(&(&highs, &lows, &closes))
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+    // Convert to separate arrays for JS
+    let k_line: Vec<f64> = results.iter().map(|r| r.k).collect();
+    let d_line: Vec<f64> = results.iter().map(|r| r.d).collect();
+
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("k"),
+        &js_sys::Float64Array::from(&k_line[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set k property"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("d"),
+        &js_sys::Float64Array::from(&d_line[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set d property"))?;
+
+    Ok(obj.into())
+}
+
+/// Calculate Slow Stochastic for arrays of high, low, and close prices.
+///
+/// Returns an object with `k` and `d` arrays.
+#[wasm_bindgen(js_name = "stochSlow")]
+pub fn stoch_slow_batch(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    k_period: usize,
+    d_period: usize,
+    slowing: usize,
+) -> Result<JsValue, JsError> {
+    let indicator = Stoch::new_with_slowing(k_period, d_period, slowing, StochType::Slow)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+    let results = indicator
+        .calculate(&(&highs, &lows, &closes))
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+    // Convert to separate arrays for JS
+    let k_line: Vec<f64> = results.iter().map(|r| r.k).collect();
+    let d_line: Vec<f64> = results.iter().map(|r| r.d).collect();
+
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("k"),
+        &js_sys::Float64Array::from(&k_line[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set k property"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("d"),
+        &js_sys::Float64Array::from(&d_line[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set d property"))?;
+
+    Ok(obj.into())
+}
+
+/// Streaming Fast Stochastic calculator for real-time O(1) updates.
+#[wasm_bindgen(js_name = "StochFastStream")]
+pub struct WasmStochFastStream {
+    inner: StochStream,
+}
+
+#[wasm_bindgen(js_class = "StochFastStream")]
+impl WasmStochFastStream {
+    /// Create a new streaming Fast Stochastic calculator.
+    #[wasm_bindgen(constructor)]
+    pub fn new(k_period: usize, d_period: usize) -> Result<WasmStochFastStream, JsError> {
+        let inner = StochStream::new(k_period, d_period, StochType::Fast)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical data. Takes parallel arrays of highs, lows, closes.
+    /// Returns array of Stochastic outputs as JS object with k and d arrays.
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(
+        &mut self,
+        highs: &[f64],
+        lows: &[f64],
+        closes: &[f64],
+    ) -> Result<JsValue, JsError> {
+        if highs.len() != lows.len() || highs.len() != closes.len() {
+            return Err(JsError::new(
+                "highs, lows, and closes must have the same length",
+            ));
+        }
+
+        let bars: Vec<StochBar> = highs
+            .iter()
+            .zip(lows.iter())
+            .zip(closes.iter())
+            .map(|((&h, &l), &c)| (h, l, c))
+            .collect();
+
+        let results = self
+            .inner
+            .init(&bars)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+
+        // Convert to separate arrays for JS
+        let k_line: Vec<f64> = results.iter().map(|r| r.k).collect();
+        let d_line: Vec<f64> = results.iter().map(|r| r.d).collect();
+
+        let obj = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("k"),
+            &js_sys::Float64Array::from(&k_line[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set k property"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("d"),
+            &js_sys::Float64Array::from(&d_line[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set d property"))?;
+
+        Ok(obj.into())
+    }
+
+    /// Process next bar. Takes high, low, close.
+    /// Returns Stochastic output or undefined if not ready.
+    pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<WasmStochOutput> {
+        self.inner.next((high, low, close)).map(WasmStochOutput::from)
+    }
+
+    /// Reset the calculator to initial state.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if calculator has enough data to produce values.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the K period.
+    #[wasm_bindgen(getter, js_name = "kPeriod")]
+    pub fn k_period(&self) -> usize {
+        self.inner.k_period()
+    }
+
+    /// Get the D period.
+    #[wasm_bindgen(getter, js_name = "dPeriod")]
+    pub fn d_period(&self) -> usize {
+        self.inner.d_period()
+    }
+}
+
+/// Streaming Slow Stochastic calculator for real-time O(1) updates.
+#[wasm_bindgen(js_name = "StochSlowStream")]
+pub struct WasmStochSlowStream {
+    inner: StochStream,
+}
+
+#[wasm_bindgen(js_class = "StochSlowStream")]
+impl WasmStochSlowStream {
+    /// Create a new streaming Slow Stochastic calculator.
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        k_period: usize,
+        d_period: usize,
+        slowing: usize,
+    ) -> Result<WasmStochSlowStream, JsError> {
+        let inner = StochStream::new_with_slowing(k_period, d_period, slowing, StochType::Slow)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical data. Takes parallel arrays of highs, lows, closes.
+    /// Returns array of Stochastic outputs as JS object with k and d arrays.
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(
+        &mut self,
+        highs: &[f64],
+        lows: &[f64],
+        closes: &[f64],
+    ) -> Result<JsValue, JsError> {
+        if highs.len() != lows.len() || highs.len() != closes.len() {
+            return Err(JsError::new(
+                "highs, lows, and closes must have the same length",
+            ));
+        }
+
+        let bars: Vec<StochBar> = highs
+            .iter()
+            .zip(lows.iter())
+            .zip(closes.iter())
+            .map(|((&h, &l), &c)| (h, l, c))
+            .collect();
+
+        let results = self
+            .inner
+            .init(&bars)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+
+        // Convert to separate arrays for JS
+        let k_line: Vec<f64> = results.iter().map(|r| r.k).collect();
+        let d_line: Vec<f64> = results.iter().map(|r| r.d).collect();
+
+        let obj = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("k"),
+            &js_sys::Float64Array::from(&k_line[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set k property"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("d"),
+            &js_sys::Float64Array::from(&d_line[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set d property"))?;
+
+        Ok(obj.into())
+    }
+
+    /// Process next bar. Takes high, low, close.
+    /// Returns Stochastic output or undefined if not ready.
+    pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<WasmStochOutput> {
+        self.inner.next((high, low, close)).map(WasmStochOutput::from)
+    }
+
+    /// Reset the calculator to initial state.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if calculator has enough data to produce values.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the K period.
+    #[wasm_bindgen(getter, js_name = "kPeriod")]
+    pub fn k_period(&self) -> usize {
+        self.inner.k_period()
+    }
+
+    /// Get the D period.
+    #[wasm_bindgen(getter, js_name = "dPeriod")]
+    pub fn d_period(&self) -> usize {
+        self.inner.d_period()
+    }
+
+    /// Get the slowing period.
+    #[wasm_bindgen(getter)]
+    pub fn slowing(&self) -> usize {
+        self.inner.slowing()
     }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { sma, ema, rsi, macd, bbands, atr, SmaStream, EmaStream, RsiStream, MacdStream, BBandsStream, AtrStream } from '../dist/index.js';
+import { sma, ema, rsi, macd, bbands, atr, stochFast, stochSlow, SmaStream, EmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream } from '../dist/index.js';
 import {
   sma as ftiSma,
   ema as ftiEma,
@@ -546,6 +546,176 @@ describe('ta-tools Integration Tests', () => {
       const lows = new Float64Array([0.5, 1.5]); // Different length
       const closes = new Float64Array([0.8, 1.8, 2.8]);
       expect(() => atr(highs, lows, closes, 2)).toThrow();
+    });
+  });
+
+  describe('Stochastic Oscillator', () => {
+    // Longer price series for stochastic (validated OHLC data)
+    const STOCH_HIGHS = [
+      127.01, 127.62, 126.59, 127.35, 128.17, 128.43, 127.37, 126.42, 126.90, 126.85,
+      125.65, 125.72, 127.16, 127.72, 128.22, 128.27, 128.09, 128.27, 127.74, 128.77
+    ];
+    const STOCH_LOWS = [
+      125.36, 126.16, 124.93, 126.09, 126.82, 126.48, 126.03, 124.83, 126.39, 125.72,
+      124.56, 124.57, 125.07, 126.86, 126.63, 126.80, 126.71, 126.13, 125.92, 126.36
+    ];
+    const STOCH_CLOSES = [
+      126.90, 127.16, 125.30, 126.53, 127.79, 128.01, 127.11, 125.44, 126.70, 126.25,
+      125.09, 125.52, 126.74, 127.35, 127.91, 128.01, 127.59, 127.59, 127.01, 127.88
+    ];
+
+    it('should calculate Fast Stochastic correctly (batch)', () => {
+      const highs = new Float64Array(STOCH_HIGHS);
+      const lows = new Float64Array(STOCH_LOWS);
+      const closes = new Float64Array(STOCH_CLOSES);
+      const kPeriod = 5;
+      const dPeriod = 3;
+
+      const result = stochFast(highs, lows, closes, kPeriod, dPeriod);
+
+      expect(result.k).toBeDefined();
+      expect(result.d).toBeDefined();
+      expect(result.k.length).toBe(STOCH_HIGHS.length);
+      expect(result.d.length).toBe(STOCH_HIGHS.length);
+
+      // First (kPeriod - 1) values should be NaN
+      for (let i = 0; i < kPeriod - 1; i++) {
+        expect(Number.isNaN(result.k[i])).toBe(true);
+      }
+
+      // %K values should be between 0 and 100
+      for (let i = kPeriod - 1; i < result.k.length; i++) {
+        expect(result.k[i]).toBeGreaterThanOrEqual(0);
+        expect(result.k[i]).toBeLessThanOrEqual(100);
+      }
+
+      // %D should start appearing after kPeriod + dPeriod - 2
+      const firstValidD = kPeriod + dPeriod - 2;
+      for (let i = firstValidD; i < result.d.length; i++) {
+        expect(Number.isNaN(result.d[i])).toBe(false);
+        expect(result.d[i]).toBeGreaterThanOrEqual(0);
+        expect(result.d[i]).toBeLessThanOrEqual(100);
+      }
+    });
+
+    it('should calculate Slow Stochastic correctly (batch)', () => {
+      const highs = new Float64Array(STOCH_HIGHS);
+      const lows = new Float64Array(STOCH_LOWS);
+      const closes = new Float64Array(STOCH_CLOSES);
+      const kPeriod = 5;
+      const dPeriod = 3;
+      const slowing = 3;
+
+      const result = stochSlow(highs, lows, closes, kPeriod, dPeriod, slowing);
+
+      expect(result.k).toBeDefined();
+      expect(result.d).toBeDefined();
+      expect(result.k.length).toBe(STOCH_HIGHS.length);
+
+      // Slow stochastic smooths %K, so valid values appear later
+      // First valid smoothed %K at: kPeriod - 1 + slowing - 1 = kPeriod + slowing - 2
+      const firstValidK = kPeriod + slowing - 2;
+      
+      for (let i = firstValidK; i < result.k.length; i++) {
+        expect(Number.isNaN(result.k[i])).toBe(false);
+        expect(result.k[i]).toBeGreaterThanOrEqual(0);
+        expect(result.k[i]).toBeLessThanOrEqual(100);
+      }
+    });
+
+    it('Fast Stochastic streaming should match batch results', () => {
+      const highs = new Float64Array(STOCH_HIGHS);
+      const lows = new Float64Array(STOCH_LOWS);
+      const closes = new Float64Array(STOCH_CLOSES);
+      const kPeriod = 5;
+      const dPeriod = 3;
+
+      const batchResult = stochFast(highs, lows, closes, kPeriod, dPeriod);
+      const stream = new StochFastStream(kPeriod, dPeriod);
+      const streamResult = stream.init(highs, lows, closes);
+
+      expect(streamResult.k.length).toBe(batchResult.k.length);
+      expect(streamResult.d.length).toBe(batchResult.d.length);
+
+      for (let i = 0; i < batchResult.k.length; i++) {
+        if (Number.isNaN(batchResult.k[i])) {
+          expect(Number.isNaN(streamResult.k[i])).toBe(true);
+        } else {
+          assertClose(streamResult.k[i], batchResult.k[i]);
+        }
+
+        if (Number.isNaN(batchResult.d[i])) {
+          expect(Number.isNaN(streamResult.d[i])).toBe(true);
+        } else {
+          assertClose(streamResult.d[i], batchResult.d[i]);
+        }
+      }
+    });
+
+    it('Slow Stochastic streaming should match batch results', () => {
+      const highs = new Float64Array(STOCH_HIGHS);
+      const lows = new Float64Array(STOCH_LOWS);
+      const closes = new Float64Array(STOCH_CLOSES);
+      const kPeriod = 5;
+      const dPeriod = 3;
+      const slowing = 3;
+
+      const batchResult = stochSlow(highs, lows, closes, kPeriod, dPeriod, slowing);
+      const stream = new StochSlowStream(kPeriod, dPeriod, slowing);
+      const streamResult = stream.init(highs, lows, closes);
+
+      expect(streamResult.k.length).toBe(batchResult.k.length);
+      expect(streamResult.d.length).toBe(batchResult.d.length);
+
+      for (let i = 0; i < batchResult.k.length; i++) {
+        if (Number.isNaN(batchResult.k[i])) {
+          expect(Number.isNaN(streamResult.k[i])).toBe(true);
+        } else {
+          assertClose(streamResult.k[i], batchResult.k[i]);
+        }
+
+        if (Number.isNaN(batchResult.d[i])) {
+          expect(Number.isNaN(streamResult.d[i])).toBe(true);
+        } else {
+          assertClose(streamResult.d[i], batchResult.d[i]);
+        }
+      }
+    });
+
+    it('streaming should continue with O(1) updates', () => {
+      const highs = new Float64Array(STOCH_HIGHS.slice(0, 10));
+      const lows = new Float64Array(STOCH_LOWS.slice(0, 10));
+      const closes = new Float64Array(STOCH_CLOSES.slice(0, 10));
+
+      const stream = new StochFastStream(5, 3);
+      stream.init(highs, lows, closes);
+
+      expect(stream.isReady()).toBe(true);
+
+      // Add remaining data points one by one
+      for (let i = 10; i < STOCH_HIGHS.length; i++) {
+        const output = stream.next(STOCH_HIGHS[i], STOCH_LOWS[i], STOCH_CLOSES[i]);
+        expect(output).toBeDefined();
+        expect(output!.k).toBeGreaterThanOrEqual(0);
+        expect(output!.k).toBeLessThanOrEqual(100);
+      }
+    });
+
+    it('should throw on invalid parameters', () => {
+      const highs = new Float64Array(STOCH_HIGHS);
+      const lows = new Float64Array(STOCH_LOWS);
+      const closes = new Float64Array(STOCH_CLOSES);
+      
+      expect(() => stochFast(highs, lows, closes, 0, 3)).toThrow();
+      expect(() => stochFast(highs, lows, closes, 5, 0)).toThrow();
+      expect(() => stochSlow(highs, lows, closes, 5, 3, 0)).toThrow();
+    });
+
+    it('should throw on mismatched array lengths', () => {
+      const highs = new Float64Array([1, 2, 3]);
+      const lows = new Float64Array([0.5, 1.5]); // Different length
+      const closes = new Float64Array([0.8, 1.8, 2.8]);
+      expect(() => stochFast(highs, lows, closes, 2, 2)).toThrow();
     });
   });
 });

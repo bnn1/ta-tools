@@ -9,6 +9,7 @@ pub mod ema;
 pub mod macd;
 pub mod rsi;
 pub mod sma;
+pub mod stochastic;
 pub mod wma;
 
 pub use atr::{Atr, AtrBar, AtrStream};
@@ -17,4 +18,5 @@ pub use ema::{Ema, EmaStream};
 pub use macd::{Macd, MacdOutput, MacdStream, SignalType};
 pub use rsi::{Rsi, RsiStream};
 pub use sma::{Sma, SmaStream};
+pub use stochastic::{Stoch, StochBar, StochOutput, StochStream, StochType};
 pub use wma::{Wma, WmaStream};

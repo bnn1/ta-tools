@@ -2,64 +2,57 @@
 
 ---
 
-## 🚨 INVESTIGATION QUEUE (Priority)
+## 📋 Next Steps
 
-### Issue 1: Synchronous WASM Compilation Bottleneck
-**File:** `pkg/ta_core.js` (bottom of file)
-**Problem:** `new WebAssembly.Module()` and `new WebAssembly.Instance()` are synchronous operations.
-**Impact:**
-- Event loop blocking during startup if WASM binary is large
-- V8 engine has ~4KB limit on sync WASM compilation on main thread
-- May throw errors or warnings in some Node.js versions
+### Remaining Tier A Indicators
 
-**Solution Plan:**
-- [ ] Research wasm-bindgen/wasm-pack options for async module instantiation
-- [ ] Consider using `WebAssembly.instantiateStreaming()` or `WebAssembly.compile()` + `WebAssembly.instantiate()` 
-- [ ] May need custom JS wrapper that lazily initializes WASM on first use
-- [ ] Check if `--target web` vs `--target nodejs` affects this behavior
+1. **VWAP (Volume Weighted Average Price)**
+   - Three modes: Session (daily reset), Rolling (window), Anchored (from timestamp)
+   - Requires OHLCV input, not just prices
 
-### Issue 2: Function Aliasing (Confusing Stack Traces)
-**File:** `pkg/ta_core.js`
-**Problem:** Compiler optimization merges identical functions (e.g., `bbandsstream_k` used for `WasmMacdOutput.macd`)
-**Impact:**
-- Stack traces show wrong function names during debugging
-- Code appears to call BBands functions when actually using MACD
+2. **Stochastic RSI**
+   - RSI of RSI with stochastic formula
 
-**Root Cause:** LLVM/wasm-opt ICF (Identical Code Folding) - functions that compile to same bytecode are merged.
+3. **Pivot Points**
+   - Standard, Fibonacci, Woodie variants
+   - Auto-detect timeframe from timestamps
 
-**Solution Plan:**
-- [ ] Research wasm-pack/wasm-opt flags to disable ICF (`--no-icf` or similar)
-- [ ] Alternative: Add `#[inline(never)]` or `std::hint::black_box()` in Rust to force unique code
-- [ ] Alternative: Accept this as cosmetic issue (all tests pass, values correct)
-- [ ] Document this behavior for library users
+4. **FRVP (Fixed Range Volume Profile)**
+   - Volume histogram by price level
+   - Output: POC, VAH, VAL
 
-### Issue 3: Memory Detachment Vulnerability
-**File:** `pkg/ta_core.js` - `passArrayF64ToWasm0` function
-**Problem:** If WASM output (a view into WASM memory) is passed directly to another WASM function without `.slice()`, memory growth can detach the input buffer.
+5. **CVD (Cumulative Volume Delta)**
+   - Requires buy/sell volume input
+   - Simple cumulative sum
 
-**Scenario:**
-1. Get `Float64Array` result from WASM function (backed by WASM memory)
-2. Pass it to another WASM function
-3. If `malloc` triggers memory growth, original buffer detaches
-4. `.set(arg)` fails because `arg` is now length 0
+### Tier B Indicators
 
-**Current State:** Generated exports call `.slice()` on returns (safe). Risk exists for manual `Stream` class usage.
+6. **MFI (Money Flow Index)** - Volume-weighted RSI
+7. **HMA (Hull Moving Average)** - Low-lag MA using WMA
+8. **Ichimoku Cloud** - Full suite (5 components)
+9. **ADX (Average Directional Index)** - Trend strength
+10. **Linear Regression Channels** - With Pearson's R
 
-**Solution Plan:**
-- [ ] Audit all WASM exports to ensure they return copied arrays, not views
-- [ ] Add documentation warning about retaining WASM memory views
-- [ ] Consider wrapper that auto-slices outputs
+### Infrastructure Improvements
 
-### Issue 4: Finalizer/GC Reliability for Memory Management
-**File:** `pkg/ta_core.js` - `FinalizationRegistry` usage
-**Problem:** WASM memory cleanup relies on JavaScript GC timing.
+- [ ] GitHub Actions CI/CD pipeline
+- [ ] npm publish workflow
+- [ ] Documentation site (TypeDoc or similar)
+- [ ] Add Rust-level benchmarks with Criterion
 
-**Risk:** Creating many stream objects in tight loops may exhaust WASM memory (2-4GB cap) before GC runs.
+### Optimizations
 
-**Solution Plan:**
-- [ ] Document best practice: call `.free()` or use `using` keyword explicitly
-- [ ] Add usage examples showing proper disposal patterns
-- [ ] Consider adding pool/reuse pattern for high-throughput scenarios
+- [ ] Add `#[inline]` hints for hot paths
+- [ ] Consider use shared memory (SharedArrayBuffer) to avoid copies
+- [ ] Consider batch `next()` method to reduce WASM calls
+- [ ] Consider keep more state in JS for streaming to reduce WASM calls
+
+### API Enhancements
+
+- [ ] Add OHLCV-based indicator variants
+- [ ] Support custom smoothing multipliers for all MAs
+- [ ] Add `update()` method to modify last value (for live candle updates)
+- [ ] Provide raw indicator state for serialization/persistence
 
 ---
 
@@ -100,8 +93,9 @@
 | MACD | `Macd` | `MacdStream` | Composes 3 EMA streams | ✅ |
 | Bollinger Bands | `BBands` | `BBandsStream` | Welford's online variance O(1) | ✅ |
 | ATR | `Atr` | `AtrStream` | Wilder's smoothing on True Range | ✅ |
+| Stochastic | `Stoch` | `StochStream` | Monotonic deques for O(1) min/max | ✅ |
 
-**Total: 7 indicators implemented with batch + streaming modes**
+**Total: 8 indicators implemented with batch + streaming modes**
 
 ### Phase 4: WASM Bindings ✅
 
@@ -113,12 +107,15 @@
 - `macd(data, fastPeriod, slowPeriod, signalPeriod): { macd, signal, histogram }`
 - `bbands(data, period, k): { upper, middle, lower, percentB, bandwidth }`
 - `atr(high, low, close, period): Float64Array`
+- `stochFast(high, low, close, kPeriod, dPeriod): { k, d }`
+- `stochSlow(high, low, close, kPeriod, dPeriod, slowing): { k, d }`
 
 **Streaming classes (stateful):**
 - `SmaStream`, `EmaStream`, `RsiStream`, `WmaStream` - Single value input
 - `MacdStream` - Returns `{ macd, signal, histogram }` output object
 - `BBandsStream` - Returns `{ upper, middle, lower, percentB, bandwidth }` output object
 - `AtrStream` - Takes (high, low, close) per candle
+- `StochFastStream`, `StochSlowStream` - Takes (high, low, close), returns `{ k, d }`
 
 **Common interface:**
 - Constructor: `new XxxStream(period, ...options)`
@@ -128,78 +125,21 @@
 ### Phase 5: Testing ✅
 
 **Test counts:**
-- Rust unit tests: 56 passing
+- Rust unit tests: 68 passing
 - Rust doc-tests: 10 passing  
-- JS integration tests: 26 passing
+- JS integration tests: 33 passing
 
 **Test coverage:**
 - Batch calculation correctness
 - Streaming matches batch results
 - Comparison with `fast-technical-indicators` library
 - Edge cases (empty data, insufficient data, invalid params)
-- Multi-input indicators (ATR with high/low/close)
+- Multi-input indicators (ATR, Stochastic with high/low/close)
 
-### Phase 6: Bug Fixes ✅
+### Phase 6: Optimization ✅
 
-**WASM Binding Struct Refactor:**
-- Converted `WasmMacdOutput` and `WasmBBandsOutput` from public fields with `#[wasm_bindgen(readonly)]` to private fields with explicit `#[wasm_bindgen(getter)]` methods
-- This makes the Rust code cleaner and more intentional
-- Note: Function aliasing still occurs (cosmetic issue, values are correct)
+**WASM Optimization:**
+- wasm-opt enabled with `--enable-simd -O3` flags
+- WASM binary size: 75KB (optimized)
+- Full LLVM optimization including ICF (Identical Code Folding)
 
----
-
-## 📋 Next Steps
-
-### Remaining Tier A Indicators
-
-1. **VWAP (Volume Weighted Average Price)**
-   - Three modes: Session (daily reset), Rolling (window), Anchored (from timestamp)
-   - Requires OHLCV input, not just prices
-
-2. **Stochastic Oscillator**
-   - Fast and Slow variants
-   - Uses high/low/close
-
-3. **Stochastic RSI**
-   - RSI of RSI with stochastic formula
-
-4. **Pivot Points**
-   - Standard, Fibonacci, Woodie variants
-   - Auto-detect timeframe from timestamps
-
-5. **FRVP (Fixed Range Volume Profile)**
-   - Volume histogram by price level
-   - Output: POC, VAH, VAL
-
-6. **CVD (Cumulative Volume Delta)**
-   - Requires buy/sell volume input
-   - Simple cumulative sum
-
-### Tier B Indicators
-
-7. **MFI (Money Flow Index)** - Volume-weighted RSI
-8. **HMA (Hull Moving Average)** - Low-lag MA using WMA
-9. **Ichimoku Cloud** - Full suite (5 components)
-10. **ADX (Average Directional Index)** - Trend strength
-11. **Linear Regression Channels** - With Pearson's R
-
-### Infrastructure Improvements
-
-- [ ] GitHub Actions CI/CD pipeline
-- [ ] npm publish workflow
-- [ ] Documentation site (TypeDoc or similar)
-- [ ] Add Rust-level benchmarks with Criterion
-
-### Optimizations
-
-- [ ] Add `#[inline]` hints for hot paths
-- [ ] Consider use shared memory (SharedArrayBuffer) to avoid copies
-- [ ] Consider batch `next()` method to reduce WASM calls
-- [ ] Consider keep more state in JS for streaming to reduce WASM calls
-
-### API Enhancements
-
-- [ ] Add OHLCV-based indicator variants
-- [ ] Support custom smoothing multipliers for all MAs
-- [ ] Add `update()` method to modify last value (for live candle updates)
-- [ ] Provide raw indicator state for serialization/persistence
