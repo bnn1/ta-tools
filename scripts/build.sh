@@ -16,7 +16,7 @@ wasm-pack build crates/ta-core \
     --out-name ta_core
 
 echo "📦 Building TypeScript..."
-npx tsc
+npx --no-install tsc
 
 echo "✅ Build complete!"
 echo "   WASM output: pkg/"

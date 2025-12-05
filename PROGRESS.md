@@ -6,32 +6,17 @@
 
 ### Remaining Tier A Indicators
 
-1. **VWAP (Volume Weighted Average Price)**
-   - Three modes: Session (daily reset), Rolling (window), Anchored (from timestamp)
-   - Requires OHLCV input, not just prices
-
-2. **Stochastic RSI**
-   - RSI of RSI with stochastic formula
-
-3. **Pivot Points**
-   - Standard, Fibonacci, Woodie variants
-   - Auto-detect timeframe from timestamps
-
-4. **FRVP (Fixed Range Volume Profile)**
+1. **FRVP (Fixed Range Volume Profile)**
    - Volume histogram by price level
    - Output: POC, VAH, VAL
 
-5. **CVD (Cumulative Volume Delta)**
-   - Requires buy/sell volume input
-   - Simple cumulative sum
-
 ### Tier B Indicators
 
-6. **MFI (Money Flow Index)** - Volume-weighted RSI
-7. **HMA (Hull Moving Average)** - Low-lag MA using WMA
-8. **Ichimoku Cloud** - Full suite (5 components)
-9. **ADX (Average Directional Index)** - Trend strength
-10. **Linear Regression Channels** - With Pearson's R
+2. **MFI (Money Flow Index)** - Volume-weighted RSI
+3. **HMA (Hull Moving Average)** - Low-lag MA using WMA
+4. **Ichimoku Cloud** - Full suite (5 components)
+5. **ADX (Average Directional Index)** - Trend strength
+6. **Linear Regression Channels** - With Pearson's R
 
 ### Infrastructure Improvements
 
@@ -94,8 +79,12 @@
 | Bollinger Bands | `BBands` | `BBandsStream` | Welford's online variance O(1) | ✅ |
 | ATR | `Atr` | `AtrStream` | Wilder's smoothing on True Range | ✅ |
 | Stochastic | `Stoch` | `StochStream` | Monotonic deques for O(1) min/max | ✅ |
+| Stochastic RSI | `StochRsi` | `StochRsiStream` | RSI + Stochastic with deques | ✅ |
+| CVD | `Cvd`, `CvdOhlcv` | `CvdStream`, `CvdOhlcvStream` | Cumulative sum, OHLCV delta approx | ✅ |
+| **VWAP** | `SessionVwap`, `RollingVwap`, `AnchoredVwap` | `SessionVwapStream`, `RollingVwapStream`, `AnchoredVwapStream` | Cumulative TP×Vol / Vol | ✅ |
+| **Pivot Points** | `PivotPoints` | N/A (stateless) | Standard, Fibonacci, Woodie | ✅ |
 
-**Total: 8 indicators implemented with batch + streaming modes**
+**Total: 12 indicators implemented**
 
 ### Phase 4: WASM Bindings ✅
 
@@ -109,6 +98,15 @@
 - `atr(high, low, close, period): Float64Array`
 - `stochFast(high, low, close, kPeriod, dPeriod): { k, d }`
 - `stochSlow(high, low, close, kPeriod, dPeriod, slowing): { k, d }`
+- `stochRsi(data, rsiPeriod, stochPeriod, kSmooth, dPeriod): { k, d }`
+- `cvd(deltas): Float64Array` - From pre-computed deltas
+- `cvdOhlcv(high, low, close, volume): Float64Array` - Approximates delta from candle structure
+- `sessionVwap(timestamps, opens, highs, lows, closes, volumes): Float64Array` - Daily reset VWAP
+- `rollingVwap(timestamps, opens, highs, lows, closes, volumes, period): Float64Array` - Window-based
+- `anchoredVwap(timestamps, opens, highs, lows, closes, volumes, anchorIndex): Float64Array`
+- `anchoredVwapFromTimestamp(timestamps, opens, highs, lows, closes, volumes, anchorTs): Float64Array`
+- `pivotPoints(high, low, close, variant): { pivot, r1, r2, r3, s1, s2, s3 }` - Single candle
+- `pivotPointsBatch(highs, lows, closes, variant): { pivot, r1, r2, r3, s1, s2, s3 }` - Arrays
 
 **Streaming classes (stateful):**
 - `SmaStream`, `EmaStream`, `RsiStream`, `WmaStream` - Single value input
@@ -116,6 +114,12 @@
 - `BBandsStream` - Returns `{ upper, middle, lower, percentB, bandwidth }` output object
 - `AtrStream` - Takes (high, low, close) per candle
 - `StochFastStream`, `StochSlowStream` - Takes (high, low, close), returns `{ k, d }`
+- `StochRsiStream` - Single value input, returns `{ k, d }`
+- `CvdStream` - Direct delta input, returns cumulative value
+- `CvdOhlcvStream` - Takes (high, low, close, volume), returns cumulative value
+- `SessionVwapStream` - OHLCV input, resets daily at UTC midnight
+- `RollingVwapStream` - OHLCV input, sliding window
+- `AnchoredVwapStream` - OHLCV input, from anchor point
 
 **Common interface:**
 - Constructor: `new XxxStream(period, ...options)`
@@ -125,9 +129,8 @@
 ### Phase 5: Testing ✅
 
 **Test counts:**
-- Rust unit tests: 68 passing
-- Rust doc-tests: 10 passing  
-- JS integration tests: 33 passing
+- Rust unit tests: 110 passing
+- JS integration tests: 78 passing
 
 **Test coverage:**
 - Batch calculation correctness
@@ -135,11 +138,12 @@
 - Comparison with `fast-technical-indicators` library
 - Edge cases (empty data, insufficient data, invalid params)
 - Multi-input indicators (ATR, Stochastic with high/low/close)
+- NaN handling - returns NaN for insufficient data, never crashes
 
 ### Phase 6: Optimization ✅
 
 **WASM Optimization:**
-- wasm-opt enabled with `--enable-simd -O3` flags
-- WASM binary size: 75KB (optimized)
+- wasm-opt enabled with `--enable-simd --enable-bulk-memory --enable-nontrapping-float-to-int -O3`
+- WASM binary size: ~80KB (optimized)
 - Full LLVM optimization including ICF (Identical Code Folding)
 
