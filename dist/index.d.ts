@@ -91,5 +91,5 @@
  * const frvpOutput = frvpStream.next(newHigh, newLow, newClose, newVolume);
  * ```
  */
-export { sma, ema, wma, rsi, macd, bbands, atr, stochFast, stochSlow, stochRsi, cvd, cvdOhlcv, sessionVwap, rollingVwap, anchoredVwap, anchoredVwapFromTimestamp, pivotPoints, pivotPointsBatch, frvp, SmaStream, EmaStream, WmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream, StochRsiStream, CvdStream, CvdOhlcvStream, SessionVwapStream, RollingVwapStream, AnchoredVwapStream, FrvpStream, FrvpOutput, VolumeProfileRow, } from '../pkg/ta_core.js';
+export { sma, ema, wma, rsi, macd, bbands, atr, stochFast, stochSlow, stochRsi, cvd, cvdOhlcv, sessionVwap, rollingVwap, anchoredVwap, anchoredVwapFromTimestamp, pivotPoints, pivotPointsBatch, frvp, mfi, hma, ichimoku, adx, linreg, SmaStream, EmaStream, WmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream, StochRsiStream, CvdStream, CvdOhlcvStream, SessionVwapStream, RollingVwapStream, AnchoredVwapStream, FrvpStream, MfiStream, HmaStream, IchimokuStream, AdxStream, LinRegStream, FrvpOutput, VolumeProfileRow, } from '../pkg/ta_core.js';
 //# sourceMappingURL=index.d.ts.map

@@ -5,12 +5,14 @@
 use wasm_bindgen::prelude::*;
 
 use crate::indicators::{
-    Atr, AtrBar, AtrStream, BBands, BBandsOutput, BBandsStream, Cvd, CvdBar, CvdOhlcv,
-    CvdOhlcvStream, CvdStream, Ema, EmaStream, Frvp, FrvpOutput, FrvpStream, Macd, MacdOutput,
-    MacdStream, PivotPoints, PivotPointsOutput, PivotPointsVariant, Rsi, RsiStream, Sma,
-    SmaStream, Stoch, StochBar, StochOutput, StochStream, StochType, StochRsi, StochRsiOutput,
-    StochRsiStream, Wma, WmaStream, SessionVwap, SessionVwapStream, RollingVwap, RollingVwapStream,
-    AnchoredVwap, AnchoredVwapStream, VolumeProfileRow,
+    Adx, AdxBar, AdxOutput, AdxStream, Atr, AtrBar, AtrStream, BBands, BBandsOutput, BBandsStream,
+    Cvd, CvdBar, CvdOhlcv, CvdOhlcvStream, CvdStream, Ema, EmaStream, Frvp, FrvpOutput, FrvpStream,
+    Hma, HmaStream, Ichimoku, IchimokuBar, IchimokuOutput, IchimokuStream, LinReg, LinRegOutput,
+    LinRegStream, Macd, MacdOutput, MacdStream, Mfi, MfiBar, MfiStream, PivotPoints,
+    PivotPointsOutput, PivotPointsVariant, Rsi, RsiStream, Sma, SmaStream, Stoch, StochBar,
+    StochOutput, StochStream, StochType, StochRsi, StochRsiOutput, StochRsiStream, Wma, WmaStream,
+    SessionVwap, SessionVwapStream, RollingVwap, RollingVwapStream, AnchoredVwap,
+    AnchoredVwapStream, VolumeProfileRow,
 };
 use crate::traits::{Indicator, StreamingIndicator};
 use crate::types::OHLCV;
@@ -2246,6 +2248,7 @@ impl WasmFrvpStream {
         self.inner.num_bins()
     }
 
+
     /// Get the number of candles in the buffer.
     #[wasm_bindgen(getter, js_name = "candleCount")]
     pub fn candle_count(&self) -> usize {
@@ -2255,5 +2258,827 @@ impl WasmFrvpStream {
     /// Clear all candles from the buffer.
     pub fn clear(&mut self) {
         self.inner.clear();
+    }
+}
+
+// ============================================================================
+// MFI (Money Flow Index)
+// ============================================================================
+
+/// Calculate MFI for arrays of high, low, close, and volume prices.
+///
+/// Returns Float64Array with NaN for insufficient data points.
+#[wasm_bindgen(js_name = "mfi")]
+pub fn mfi_batch(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    volumes: &[f64],
+    period: usize,
+) -> Result<Vec<f64>, JsError> {
+    let indicator = Mfi::new(period).map_err(|e| JsError::new(&e.to_string()))?;
+    indicator
+        .calculate(&(&highs, &lows, &closes, &volumes))
+        .map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// Streaming MFI calculator for real-time O(1) updates.
+#[wasm_bindgen(js_name = "MfiStream")]
+pub struct WasmMfiStream {
+    inner: MfiStream,
+}
+
+#[wasm_bindgen(js_class = "MfiStream")]
+impl WasmMfiStream {
+    /// Create a new streaming MFI calculator.
+    #[wasm_bindgen(constructor)]
+    pub fn new(period: usize) -> Result<WasmMfiStream, JsError> {
+        let inner = MfiStream::new(period).map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical OHLCV data.
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(
+        &mut self,
+        highs: &[f64],
+        lows: &[f64],
+        closes: &[f64],
+        volumes: &[f64],
+    ) -> Result<Vec<f64>, JsError> {
+        if highs.len() != lows.len() || lows.len() != closes.len() || closes.len() != volumes.len()
+        {
+            return Err(JsError::new(
+                "highs, lows, closes, and volumes must have the same length",
+            ));
+        }
+
+        let bars: Vec<MfiBar> = highs
+            .iter()
+            .zip(lows.iter())
+            .zip(closes.iter())
+            .zip(volumes.iter())
+            .map(|(((&h, &l), &c), &v)| (h, l, c, v))
+            .collect();
+
+        self.inner
+            .init(&bars)
+            .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// Process next bar.
+    pub fn next(&mut self, high: f64, low: f64, close: f64, volume: f64) -> Option<f64> {
+        self.inner.next((high, low, close, volume))
+    }
+
+    /// Get current MFI value.
+    pub fn current(&self) -> Option<f64> {
+        self.inner.current()
+    }
+
+    /// Reset the calculator.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if ready.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the period.
+    #[wasm_bindgen(getter)]
+    pub fn period(&self) -> usize {
+        self.inner.period()
+    }
+}
+
+// ============================================================================
+// HMA (Hull Moving Average)
+// ============================================================================
+
+/// Calculate HMA for an array of prices.
+///
+/// Returns Float64Array with NaN for insufficient data points.
+#[wasm_bindgen(js_name = "hma")]
+pub fn hma_batch(data: &[f64], period: usize) -> Result<Vec<f64>, JsError> {
+    let indicator = Hma::new(period).map_err(|e| JsError::new(&e.to_string()))?;
+    indicator
+        .calculate(data)
+        .map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// Streaming HMA calculator for real-time updates.
+#[wasm_bindgen(js_name = "HmaStream")]
+pub struct WasmHmaStream {
+    inner: HmaStream,
+}
+
+#[wasm_bindgen(js_class = "HmaStream")]
+impl WasmHmaStream {
+    /// Create a new streaming HMA calculator.
+    #[wasm_bindgen(constructor)]
+    pub fn new(period: usize) -> Result<WasmHmaStream, JsError> {
+        let inner = HmaStream::new(period).map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical data.
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(&mut self, data: &[f64]) -> Result<Vec<f64>, JsError> {
+        self.inner
+            .init(data)
+            .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// Process next value.
+    pub fn next(&mut self, value: f64) -> Option<f64> {
+        self.inner.next(value)
+    }
+
+    /// Reset the calculator.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if ready.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the period.
+    #[wasm_bindgen(getter)]
+    pub fn period(&self) -> usize {
+        self.inner.period()
+    }
+
+    /// Get the half period.
+    #[wasm_bindgen(getter, js_name = "halfPeriod")]
+    pub fn half_period(&self) -> usize {
+        self.inner.half_period()
+    }
+
+    /// Get the sqrt period.
+    #[wasm_bindgen(getter, js_name = "sqrtPeriod")]
+    pub fn sqrt_period(&self) -> usize {
+        self.inner.sqrt_period()
+    }
+}
+
+// ============================================================================
+// Ichimoku Cloud
+// ============================================================================
+
+/// Ichimoku output for WASM.
+#[wasm_bindgen]
+pub struct WasmIchimokuOutput {
+    tenkan_sen_val: f64,
+    kijun_sen_val: f64,
+    senkou_span_a_val: f64,
+    senkou_span_b_val: f64,
+    chikou_span_val: f64,
+}
+
+#[wasm_bindgen]
+impl WasmIchimokuOutput {
+    /// Tenkan-sen (Conversion Line)
+    #[wasm_bindgen(getter, js_name = "tenkanSen")]
+    pub fn tenkan_sen(&self) -> f64 {
+        self.tenkan_sen_val
+    }
+
+    /// Kijun-sen (Base Line)
+    #[wasm_bindgen(getter, js_name = "kijunSen")]
+    pub fn kijun_sen(&self) -> f64 {
+        self.kijun_sen_val
+    }
+
+    /// Senkou Span A (Leading Span A)
+    #[wasm_bindgen(getter, js_name = "senkouSpanA")]
+    pub fn senkou_span_a(&self) -> f64 {
+        self.senkou_span_a_val
+    }
+
+    /// Senkou Span B (Leading Span B)
+    #[wasm_bindgen(getter, js_name = "senkouSpanB")]
+    pub fn senkou_span_b(&self) -> f64 {
+        self.senkou_span_b_val
+    }
+
+    /// Chikou Span (Lagging Span)
+    #[wasm_bindgen(getter, js_name = "chikouSpan")]
+    pub fn chikou_span(&self) -> f64 {
+        self.chikou_span_val
+    }
+}
+
+impl From<IchimokuOutput> for WasmIchimokuOutput {
+    fn from(o: IchimokuOutput) -> Self {
+        Self {
+            tenkan_sen_val: o.tenkan_sen,
+            kijun_sen_val: o.kijun_sen,
+            senkou_span_a_val: o.senkou_span_a,
+            senkou_span_b_val: o.senkou_span_b,
+            chikou_span_val: o.chikou_span,
+        }
+    }
+}
+
+/// Calculate Ichimoku Cloud for arrays of high, low, and close prices.
+///
+/// Returns an object with arrays for each component.
+#[wasm_bindgen(js_name = "ichimoku")]
+pub fn ichimoku_batch(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    tenkan_period: usize,
+    kijun_period: usize,
+    senkou_b_period: usize,
+) -> Result<JsValue, JsError> {
+    let indicator = Ichimoku::new(tenkan_period, kijun_period, senkou_b_period)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+    let results = indicator
+        .calculate(&(&highs, &lows, &closes))
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+    let tenkan: Vec<f64> = results.iter().map(|r| r.tenkan_sen).collect();
+    let kijun: Vec<f64> = results.iter().map(|r| r.kijun_sen).collect();
+    let senkou_a: Vec<f64> = results.iter().map(|r| r.senkou_span_a).collect();
+    let senkou_b: Vec<f64> = results.iter().map(|r| r.senkou_span_b).collect();
+    let chikou: Vec<f64> = results.iter().map(|r| r.chikou_span).collect();
+
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("tenkanSen"),
+        &js_sys::Float64Array::from(&tenkan[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set tenkanSen"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("kijunSen"),
+        &js_sys::Float64Array::from(&kijun[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set kijunSen"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("senkouSpanA"),
+        &js_sys::Float64Array::from(&senkou_a[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set senkouSpanA"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("senkouSpanB"),
+        &js_sys::Float64Array::from(&senkou_b[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set senkouSpanB"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("chikouSpan"),
+        &js_sys::Float64Array::from(&chikou[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set chikouSpan"))?;
+
+    Ok(obj.into())
+}
+
+/// Streaming Ichimoku Cloud calculator.
+#[wasm_bindgen(js_name = "IchimokuStream")]
+pub struct WasmIchimokuStream {
+    inner: IchimokuStream,
+}
+
+#[wasm_bindgen(js_class = "IchimokuStream")]
+impl WasmIchimokuStream {
+    /// Create a new streaming Ichimoku calculator with default periods (9, 26, 52).
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        tenkan_period: Option<usize>,
+        kijun_period: Option<usize>,
+        senkou_b_period: Option<usize>,
+    ) -> Result<WasmIchimokuStream, JsError> {
+        let inner = IchimokuStream::new(
+            tenkan_period.unwrap_or(9),
+            kijun_period.unwrap_or(26),
+            senkou_b_period.unwrap_or(52),
+        )
+        .map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical data.
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(
+        &mut self,
+        highs: &[f64],
+        lows: &[f64],
+        closes: &[f64],
+    ) -> Result<JsValue, JsError> {
+        if highs.len() != lows.len() || lows.len() != closes.len() {
+            return Err(JsError::new(
+                "highs, lows, and closes must have the same length",
+            ));
+        }
+
+        let bars: Vec<IchimokuBar> = highs
+            .iter()
+            .zip(lows.iter())
+            .zip(closes.iter())
+            .map(|((&h, &l), &c)| (h, l, c))
+            .collect();
+
+        let results = self
+            .inner
+            .init(&bars)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+
+        let tenkan: Vec<f64> = results.iter().map(|r| r.tenkan_sen).collect();
+        let kijun: Vec<f64> = results.iter().map(|r| r.kijun_sen).collect();
+        let senkou_a: Vec<f64> = results.iter().map(|r| r.senkou_span_a).collect();
+        let senkou_b: Vec<f64> = results.iter().map(|r| r.senkou_span_b).collect();
+        let chikou: Vec<f64> = results.iter().map(|r| r.chikou_span).collect();
+
+        let obj = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("tenkanSen"),
+            &js_sys::Float64Array::from(&tenkan[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set tenkanSen"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("kijunSen"),
+            &js_sys::Float64Array::from(&kijun[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set kijunSen"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("senkouSpanA"),
+            &js_sys::Float64Array::from(&senkou_a[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set senkouSpanA"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("senkouSpanB"),
+            &js_sys::Float64Array::from(&senkou_b[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set senkouSpanB"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("chikouSpan"),
+            &js_sys::Float64Array::from(&chikou[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set chikouSpan"))?;
+
+        Ok(obj.into())
+    }
+
+    /// Process next bar.
+    pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<WasmIchimokuOutput> {
+        self.inner.next((high, low, close)).map(WasmIchimokuOutput::from)
+    }
+
+    /// Reset the calculator.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if ready.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the Tenkan-sen period.
+    #[wasm_bindgen(getter, js_name = "tenkanPeriod")]
+    pub fn tenkan_period(&self) -> usize {
+        self.inner.tenkan_period()
+    }
+
+    /// Get the Kijun-sen period.
+    #[wasm_bindgen(getter, js_name = "kijunPeriod")]
+    pub fn kijun_period(&self) -> usize {
+        self.inner.kijun_period()
+    }
+
+    /// Get the Senkou Span B period.
+    #[wasm_bindgen(getter, js_name = "senkouBPeriod")]
+    pub fn senkou_b_period(&self) -> usize {
+        self.inner.senkou_b_period()
+    }
+}
+
+// ============================================================================
+// ADX (Average Directional Index)
+// ============================================================================
+
+/// ADX output for WASM.
+#[wasm_bindgen]
+pub struct WasmAdxOutput {
+    adx_val: f64,
+    plus_di_val: f64,
+    minus_di_val: f64,
+}
+
+#[wasm_bindgen]
+impl WasmAdxOutput {
+    /// ADX value (0-100)
+    #[wasm_bindgen(getter)]
+    pub fn adx(&self) -> f64 {
+        self.adx_val
+    }
+
+    /// +DI value (0-100)
+    #[wasm_bindgen(getter, js_name = "plusDi")]
+    pub fn plus_di(&self) -> f64 {
+        self.plus_di_val
+    }
+
+    /// -DI value (0-100)
+    #[wasm_bindgen(getter, js_name = "minusDi")]
+    pub fn minus_di(&self) -> f64 {
+        self.minus_di_val
+    }
+}
+
+impl From<AdxOutput> for WasmAdxOutput {
+    fn from(o: AdxOutput) -> Self {
+        Self {
+            adx_val: o.adx,
+            plus_di_val: o.plus_di,
+            minus_di_val: o.minus_di,
+        }
+    }
+}
+
+/// Calculate ADX for arrays of high, low, and close prices.
+///
+/// Returns an object with `adx`, `plusDi`, and `minusDi` arrays.
+#[wasm_bindgen(js_name = "adx")]
+pub fn adx_batch(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    period: usize,
+) -> Result<JsValue, JsError> {
+    let indicator = Adx::new(period).map_err(|e| JsError::new(&e.to_string()))?;
+    let results = indicator
+        .calculate(&(&highs, &lows, &closes))
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+    let adx_vals: Vec<f64> = results.iter().map(|r| r.adx).collect();
+    let plus_di: Vec<f64> = results.iter().map(|r| r.plus_di).collect();
+    let minus_di: Vec<f64> = results.iter().map(|r| r.minus_di).collect();
+
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("adx"),
+        &js_sys::Float64Array::from(&adx_vals[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set adx"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("plusDi"),
+        &js_sys::Float64Array::from(&plus_di[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set plusDi"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("minusDi"),
+        &js_sys::Float64Array::from(&minus_di[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set minusDi"))?;
+
+    Ok(obj.into())
+}
+
+/// Streaming ADX calculator.
+#[wasm_bindgen(js_name = "AdxStream")]
+pub struct WasmAdxStream {
+    inner: AdxStream,
+}
+
+#[wasm_bindgen(js_class = "AdxStream")]
+impl WasmAdxStream {
+    /// Create a new streaming ADX calculator.
+    #[wasm_bindgen(constructor)]
+    pub fn new(period: usize) -> Result<WasmAdxStream, JsError> {
+        let inner = AdxStream::new(period).map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical data.
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(
+        &mut self,
+        highs: &[f64],
+        lows: &[f64],
+        closes: &[f64],
+    ) -> Result<JsValue, JsError> {
+        if highs.len() != lows.len() || lows.len() != closes.len() {
+            return Err(JsError::new(
+                "highs, lows, and closes must have the same length",
+            ));
+        }
+
+        let bars: Vec<AdxBar> = highs
+            .iter()
+            .zip(lows.iter())
+            .zip(closes.iter())
+            .map(|((&h, &l), &c)| (h, l, c))
+            .collect();
+
+        let results = self
+            .inner
+            .init(&bars)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+
+        let adx_vals: Vec<f64> = results.iter().map(|r| r.adx).collect();
+        let plus_di: Vec<f64> = results.iter().map(|r| r.plus_di).collect();
+        let minus_di: Vec<f64> = results.iter().map(|r| r.minus_di).collect();
+
+        let obj = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("adx"),
+            &js_sys::Float64Array::from(&adx_vals[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set adx"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("plusDi"),
+            &js_sys::Float64Array::from(&plus_di[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set plusDi"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("minusDi"),
+            &js_sys::Float64Array::from(&minus_di[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set minusDi"))?;
+
+        Ok(obj.into())
+    }
+
+    /// Process next bar.
+    pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<WasmAdxOutput> {
+        self.inner.next((high, low, close)).map(WasmAdxOutput::from)
+    }
+
+    /// Get current values.
+    pub fn current(&self) -> Option<WasmAdxOutput> {
+        self.inner.current().map(WasmAdxOutput::from)
+    }
+
+    /// Reset the calculator.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if ready.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the period.
+    #[wasm_bindgen(getter)]
+    pub fn period(&self) -> usize {
+        self.inner.period()
+    }
+}
+
+// ============================================================================
+// Linear Regression Channels
+// ============================================================================
+
+/// Linear Regression output for WASM.
+#[wasm_bindgen]
+pub struct WasmLinRegOutput {
+    value_val: f64,
+    upper_val: f64,
+    lower_val: f64,
+    slope_val: f64,
+    r_val: f64,
+    r_squared_val: f64,
+}
+
+#[wasm_bindgen]
+impl WasmLinRegOutput {
+    /// Regression value
+    #[wasm_bindgen(getter)]
+    pub fn value(&self) -> f64 {
+        self.value_val
+    }
+
+    /// Upper channel
+    #[wasm_bindgen(getter)]
+    pub fn upper(&self) -> f64 {
+        self.upper_val
+    }
+
+    /// Lower channel
+    #[wasm_bindgen(getter)]
+    pub fn lower(&self) -> f64 {
+        self.lower_val
+    }
+
+    /// Slope
+    #[wasm_bindgen(getter)]
+    pub fn slope(&self) -> f64 {
+        self.slope_val
+    }
+
+    /// Pearson's R (-1 to 1)
+    #[wasm_bindgen(getter)]
+    pub fn r(&self) -> f64 {
+        self.r_val
+    }
+
+    /// R-squared (0 to 1)
+    #[wasm_bindgen(getter, js_name = "rSquared")]
+    pub fn r_squared(&self) -> f64 {
+        self.r_squared_val
+    }
+}
+
+impl From<LinRegOutput> for WasmLinRegOutput {
+    fn from(o: LinRegOutput) -> Self {
+        Self {
+            value_val: o.value,
+            upper_val: o.upper,
+            lower_val: o.lower,
+            slope_val: o.slope,
+            r_val: o.r,
+            r_squared_val: o.r_squared,
+        }
+    }
+}
+
+/// Calculate Linear Regression Channels for an array of prices.
+///
+/// Returns an object with arrays for value, upper, lower, slope, r, and rSquared.
+#[wasm_bindgen(js_name = "linreg")]
+pub fn linreg_batch(
+    data: &[f64],
+    period: usize,
+    num_std_dev: Option<f64>,
+) -> Result<JsValue, JsError> {
+    let indicator =
+        LinReg::new(period, num_std_dev.unwrap_or(2.0)).map_err(|e| JsError::new(&e.to_string()))?;
+    let results = indicator
+        .calculate(data)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+    let values: Vec<f64> = results.iter().map(|r| r.value).collect();
+    let upper: Vec<f64> = results.iter().map(|r| r.upper).collect();
+    let lower: Vec<f64> = results.iter().map(|r| r.lower).collect();
+    let slope: Vec<f64> = results.iter().map(|r| r.slope).collect();
+    let r: Vec<f64> = results.iter().map(|r| r.r).collect();
+    let r_squared: Vec<f64> = results.iter().map(|r| r.r_squared).collect();
+
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("value"),
+        &js_sys::Float64Array::from(&values[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set value"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("upper"),
+        &js_sys::Float64Array::from(&upper[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set upper"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("lower"),
+        &js_sys::Float64Array::from(&lower[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set lower"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("slope"),
+        &js_sys::Float64Array::from(&slope[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set slope"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("r"),
+        &js_sys::Float64Array::from(&r[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set r"))?;
+    js_sys::Reflect::set(
+        &obj,
+        &JsValue::from_str("rSquared"),
+        &js_sys::Float64Array::from(&r_squared[..]).into(),
+    )
+    .map_err(|_| JsError::new("Failed to set rSquared"))?;
+
+    Ok(obj.into())
+}
+
+/// Streaming Linear Regression calculator.
+#[wasm_bindgen(js_name = "LinRegStream")]
+pub struct WasmLinRegStream {
+    inner: LinRegStream,
+}
+
+#[wasm_bindgen(js_class = "LinRegStream")]
+impl WasmLinRegStream {
+    /// Create a new streaming Linear Regression calculator.
+    #[wasm_bindgen(constructor)]
+    pub fn new(period: usize, num_std_dev: Option<f64>) -> Result<WasmLinRegStream, JsError> {
+        let inner = LinRegStream::new(period, num_std_dev.unwrap_or(2.0))
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical data.
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(&mut self, data: &[f64]) -> Result<JsValue, JsError> {
+        let results = self
+            .inner
+            .init(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+
+        let values: Vec<f64> = results.iter().map(|r| r.value).collect();
+        let upper: Vec<f64> = results.iter().map(|r| r.upper).collect();
+        let lower: Vec<f64> = results.iter().map(|r| r.lower).collect();
+        let slope: Vec<f64> = results.iter().map(|r| r.slope).collect();
+        let r: Vec<f64> = results.iter().map(|r| r.r).collect();
+        let r_squared: Vec<f64> = results.iter().map(|r| r.r_squared).collect();
+
+        let obj = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("value"),
+            &js_sys::Float64Array::from(&values[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set value"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("upper"),
+            &js_sys::Float64Array::from(&upper[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set upper"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("lower"),
+            &js_sys::Float64Array::from(&lower[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set lower"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("slope"),
+            &js_sys::Float64Array::from(&slope[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set slope"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("r"),
+            &js_sys::Float64Array::from(&r[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set r"))?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("rSquared"),
+            &js_sys::Float64Array::from(&r_squared[..]).into(),
+        )
+        .map_err(|_| JsError::new("Failed to set rSquared"))?;
+
+        Ok(obj.into())
+    }
+
+    /// Process next value.
+    pub fn next(&mut self, value: f64) -> Option<WasmLinRegOutput> {
+        self.inner.next(value).map(WasmLinRegOutput::from)
+    }
+
+    /// Reset the calculator.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if ready.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the period.
+    #[wasm_bindgen(getter)]
+    pub fn period(&self) -> usize {
+        self.inner.period()
+    }
+
+    /// Get the number of standard deviations.
+    #[wasm_bindgen(getter, js_name = "numStdDev")]
+    pub fn num_std_dev(&self) -> f64 {
+        self.inner.num_std_dev()
     }
 }

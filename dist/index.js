@@ -95,7 +95,11 @@
 export { 
 // Batch functions
 sma, ema, wma, rsi, macd, bbands, atr, stochFast, stochSlow, stochRsi, cvd, cvdOhlcv, sessionVwap, rollingVwap, anchoredVwap, anchoredVwapFromTimestamp, pivotPoints, pivotPointsBatch, frvp, 
+// Tier B batch functions
+mfi, hma, ichimoku, adx, linreg, 
 // Streaming classes
 SmaStream, EmaStream, WmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream, StochRsiStream, CvdStream, CvdOhlcvStream, SessionVwapStream, RollingVwapStream, AnchoredVwapStream, FrvpStream, 
+// Tier B streaming classes
+MfiStream, HmaStream, IchimokuStream, AdxStream, LinRegStream, 
 // Output types
 FrvpOutput, VolumeProfileRow, } from '../pkg/ta_core.js';

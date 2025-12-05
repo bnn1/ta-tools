@@ -34,8 +34,10 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "fast-technical-indicators": "^1.1.4",
+    "indicatorts": "^2.2.2",
+    "trading-signals": "^7.1.1",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
-    "fast-technical-indicators": "^1.1.4"
+    "vitest": "^2.1.8"
   }
 }

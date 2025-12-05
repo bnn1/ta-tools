@@ -114,6 +114,12 @@ export {
   pivotPoints,
   pivotPointsBatch,
   frvp,
+  // Tier B batch functions
+  mfi,
+  hma,
+  ichimoku,
+  adx,
+  linreg,
   // Streaming classes
   SmaStream,
   EmaStream,
@@ -131,6 +137,12 @@ export {
   RollingVwapStream,
   AnchoredVwapStream,
   FrvpStream,
+  // Tier B streaming classes
+  MfiStream,
+  HmaStream,
+  IchimokuStream,
+  AdxStream,
+  LinRegStream,
   // Output types
   FrvpOutput,
   VolumeProfileRow,
