@@ -4,15 +4,13 @@
 
 ## 📋 Next Steps
 
-### Remaining Tier A Indicators
+### Tier A Indicators ✅ COMPLETE
 
-1. **FRVP (Fixed Range Volume Profile)**
-   - Volume histogram by price level
-   - Output: POC, VAH, VAL
+All Tier A indicators have been implemented!
 
 ### Tier B Indicators
 
-2. **MFI (Money Flow Index)** - Volume-weighted RSI
+1. **MFI (Money Flow Index)** - Volume-weighted RSI
 3. **HMA (Hull Moving Average)** - Low-lag MA using WMA
 4. **Ichimoku Cloud** - Full suite (5 components)
 5. **ADX (Average Directional Index)** - Trend strength
@@ -83,8 +81,9 @@
 | CVD | `Cvd`, `CvdOhlcv` | `CvdStream`, `CvdOhlcvStream` | Cumulative sum, OHLCV delta approx | ✅ |
 | **VWAP** | `SessionVwap`, `RollingVwap`, `AnchoredVwap` | `SessionVwapStream`, `RollingVwapStream`, `AnchoredVwapStream` | Cumulative TP×Vol / Vol | ✅ |
 | **Pivot Points** | `PivotPoints` | N/A (stateless) | Standard, Fibonacci, Woodie | ✅ |
+| **FRVP** | `Frvp` | `FrvpStream` | Volume histogram, POC/VAH/VAL | ✅ |
 
-**Total: 12 indicators implemented**
+**Total: 13 indicators implemented (All Tier A complete)**
 
 ### Phase 4: WASM Bindings ✅
 
@@ -107,6 +106,7 @@
 - `anchoredVwapFromTimestamp(timestamps, opens, highs, lows, closes, volumes, anchorTs): Float64Array`
 - `pivotPoints(high, low, close, variant): { pivot, r1, r2, r3, s1, s2, s3 }` - Single candle
 - `pivotPointsBatch(highs, lows, closes, variant): { pivot, r1, r2, r3, s1, s2, s3 }` - Arrays
+- `frvp(highs, lows, closes, volumes, numBins?, valueAreaPercent?)` - Returns `FrvpOutput` with POC, VAH, VAL, histogram
 
 **Streaming classes (stateful):**
 - `SmaStream`, `EmaStream`, `RsiStream`, `WmaStream` - Single value input
@@ -120,6 +120,7 @@
 - `SessionVwapStream` - OHLCV input, resets daily at UTC midnight
 - `RollingVwapStream` - OHLCV input, sliding window
 - `AnchoredVwapStream` - OHLCV input, from anchor point
+- `FrvpStream` - Takes (high, low, close, volume), returns `FrvpOutput`
 
 **Common interface:**
 - Constructor: `new XxxStream(period, ...options)`
@@ -129,8 +130,8 @@
 ### Phase 5: Testing ✅
 
 **Test counts:**
-- Rust unit tests: 110 passing
-- JS integration tests: 78 passing
+- Rust unit tests: 118 passing
+- JS integration tests: 96 passing
 
 **Test coverage:**
 - Batch calculation correctness

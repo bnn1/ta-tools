@@ -5,7 +5,7 @@
  *
  * @example Batch Mode
  * ```typescript
- * import { sma, ema, wma, rsi, macd, bbands, atr, stochFast, stochSlow, stochRsi, cvd, cvdOhlcv } from 'ta-tools';
+ * import { sma, ema, wma, rsi, macd, bbands, atr, stochFast, stochSlow, stochRsi, cvd, cvdOhlcv, frvp } from 'ta-tools';
  *
  * const prices = new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
  * const smaResult = sma(prices, 3);
@@ -33,11 +33,18 @@
  * const rollingVwapResult = rollingVwap(timestamps, opens, highs, lows, closes, volumes, 20);
  * const anchoredVwapResult = anchoredVwap(timestamps, opens, highs, lows, closes, volumes, 5);
  * const anchoredVwapFromTsResult = anchoredVwapFromTimestamp(timestamps, opens, highs, lows, closes, volumes, 1700000000000);
+ * 
+ * // Fixed Range Volume Profile
+ * const frvpResult = frvp(highs, lows, closes, volumes, 100, 0.70);
+ * console.log(frvpResult.poc);  // Point of Control
+ * console.log(frvpResult.vah);  // Value Area High
+ * console.log(frvpResult.val);  // Value Area Low
+ * console.log(frvpResult.histogram); // { prices, volumes, lows, highs }
  * ```
  *
  * @example Streaming Mode
  * ```typescript
- * import { SmaStream, EmaStream, WmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream, CvdStream, CvdOhlcvStream } from 'ta-tools';
+ * import { SmaStream, EmaStream, WmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream, CvdStream, CvdOhlcvStream, FrvpStream } from 'ta-tools';
  *
  * const smaStream = new SmaStream(14);
  * smaStream.init(historicalPrices);
@@ -77,6 +84,11 @@
  * const anchoredVwapStream = AnchoredVwapStream.withAnchor(1700000000000);
  * anchoredVwapStream.init(timestamps, opens, highs, lows, closes, volumes);
  * const newAnchoredVwap = anchoredVwapStream.next(timestamp, open, high, low, close, volume);
+ * 
+ * // FRVP streaming
+ * const frvpStream = new FrvpStream(100); // 100 price bins
+ * frvpStream.init(highs, lows, closes, volumes);
+ * const frvpOutput = frvpStream.next(newHigh, newLow, newClose, newVolume);
  * ```
  */
 
@@ -101,6 +113,7 @@ export {
   anchoredVwapFromTimestamp,
   pivotPoints,
   pivotPointsBatch,
+  frvp,
   // Streaming classes
   SmaStream,
   EmaStream,
@@ -117,4 +130,8 @@ export {
   SessionVwapStream,
   RollingVwapStream,
   AnchoredVwapStream,
+  FrvpStream,
+  // Output types
+  FrvpOutput,
+  VolumeProfileRow,
 } from '../pkg/ta_core.js';

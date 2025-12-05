@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { sma, ema, rsi, macd, bbands, atr, stochFast, stochSlow, stochRsi, cvd, cvdOhlcv, sessionVwap, rollingVwap, anchoredVwap, anchoredVwapFromTimestamp, pivotPoints, pivotPointsBatch, SmaStream, EmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream, StochRsiStream, CvdStream, CvdOhlcvStream, SessionVwapStream, RollingVwapStream, AnchoredVwapStream } from '../dist/index.js';
+import { sma, ema, rsi, macd, bbands, atr, stochFast, stochSlow, stochRsi, cvd, cvdOhlcv, sessionVwap, rollingVwap, anchoredVwap, anchoredVwapFromTimestamp, pivotPoints, pivotPointsBatch, frvp, SmaStream, EmaStream, RsiStream, MacdStream, BBandsStream, AtrStream, StochFastStream, StochSlowStream, StochRsiStream, CvdStream, CvdOhlcvStream, SessionVwapStream, RollingVwapStream, AnchoredVwapStream, FrvpStream } from '../dist/index.js';
 import {
   sma as ftiSma,
   ema as ftiEma,
@@ -1507,6 +1507,239 @@ describe('ta-tools Integration Tests', () => {
         const closes = new Float64Array([105, 118]);
 
         expect(() => pivotPointsBatch(highs, lows, closes, 'standard')).toThrow();
+      });
+    });
+  });
+
+  describe('FRVP (Fixed Range Volume Profile)', () => {
+    // Sample OHLCV data for volume profile testing
+    const SAMPLE_HIGHS = new Float64Array([105, 110, 108, 112, 115, 113, 118, 116, 120, 118]);
+    const SAMPLE_LOWS = new Float64Array([100, 105, 102, 108, 110, 108, 112, 110, 115, 112]);
+    const SAMPLE_CLOSES = new Float64Array([102, 108, 105, 110, 112, 110, 115, 113, 118, 115]);
+    const SAMPLE_VOLUMES = new Float64Array([1000, 1500, 1200, 2000, 2500, 1800, 3000, 2200, 2800, 2000]);
+
+    describe('Batch Mode', () => {
+      it('should calculate FRVP correctly', () => {
+        const result = frvp(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES, 10);
+
+        // Check structure
+        expect(result.poc).toBeDefined();
+        expect(result.vah).toBeDefined();
+        expect(result.val).toBeDefined();
+        expect(result.totalVolume).toBeDefined();
+        expect(result.histogram).toBeDefined();
+
+        // POC should be within the price range
+        expect(result.poc).toBeGreaterThanOrEqual(100);
+        expect(result.poc).toBeLessThanOrEqual(120);
+
+        // VAL <= POC <= VAH
+        expect(result.val).toBeLessThanOrEqual(result.poc);
+        expect(result.vah).toBeGreaterThanOrEqual(result.poc);
+
+        // Total volume should match
+        const expectedTotal = Array.from(SAMPLE_VOLUMES).reduce((a, b) => a + b, 0);
+        assertClose(result.totalVolume, expectedTotal, 1);
+      });
+
+      it('should return histogram with correct structure', () => {
+        const numBins = 20;
+        const result = frvp(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES, numBins);
+
+        // Histogram should have arrays for prices, volumes, lows, highs
+        expect(result.histogram.prices).toBeInstanceOf(Float64Array);
+        expect(result.histogram.volumes).toBeInstanceOf(Float64Array);
+        expect(result.histogram.lows).toBeInstanceOf(Float64Array);
+        expect(result.histogram.highs).toBeInstanceOf(Float64Array);
+
+        // All arrays should have numBins elements
+        expect(result.histogram.prices.length).toBe(numBins);
+        expect(result.histogram.volumes.length).toBe(numBins);
+      });
+
+      it('should calculate value area correctly (~70% of volume)', () => {
+        const result = frvp(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES, 20, 0.70);
+
+        // Value area volume should be approximately 70% of total
+        const vaRatio = result.valueAreaVolume / result.totalVolume;
+        expect(vaRatio).toBeGreaterThanOrEqual(0.65);
+        expect(vaRatio).toBeLessThanOrEqual(1.0);
+      });
+
+      it('should support custom value area percentage', () => {
+        const result50 = frvp(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES, 20, 0.50);
+        const result80 = frvp(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES, 20, 0.80);
+
+        // Higher percentage should include more volume
+        expect(result80.valueAreaVolume).toBeGreaterThanOrEqual(result50.valueAreaVolume);
+      });
+
+      it('should use default values when not specified', () => {
+        // Should work without numBins and valueAreaPercent (defaults to 100 bins, 70%)
+        const result = frvp(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES);
+
+        expect(result.poc).toBeDefined();
+        expect(result.histogram.prices.length).toBe(100);
+      });
+
+      it('should handle single candle', () => {
+        const highs = new Float64Array([110]);
+        const lows = new Float64Array([100]);
+        const closes = new Float64Array([105]);
+        const volumes = new Float64Array([1000]);
+
+        const result = frvp(highs, lows, closes, volumes, 10);
+
+        expect(result.totalVolume).toBe(1000);
+        expect(result.poc).toBeGreaterThanOrEqual(100);
+        expect(result.poc).toBeLessThanOrEqual(110);
+      });
+
+      it('should throw on mismatched array lengths', () => {
+        const highs = new Float64Array([110, 120]);
+        const lows = new Float64Array([100]); // Wrong length
+        const closes = new Float64Array([105, 115]);
+        const volumes = new Float64Array([1000, 1500]);
+
+        expect(() => frvp(highs, lows, closes, volumes, 10)).toThrow();
+      });
+    });
+
+    describe('Streaming Mode', () => {
+      it('should initialize and return FRVP output', () => {
+        const stream = new FrvpStream(10);
+
+        expect(stream.isReady()).toBe(false);
+
+        const initResult = stream.init(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES);
+
+        expect(stream.isReady()).toBe(true);
+        expect(initResult).toBeDefined();
+        expect(initResult!.poc).toBeDefined();
+        expect(initResult!.vah).toBeDefined();
+        expect(initResult!.val).toBeDefined();
+      });
+
+      it('should update with new candles', () => {
+        const stream = new FrvpStream(10);
+        stream.init(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES);
+
+        const beforeCount = stream.candleCount;
+        const result = stream.next(125, 120, 123, 5000);
+
+        expect(stream.candleCount).toBe(beforeCount + 1);
+        expect(result).toBeDefined();
+        expect(result!.totalVolume).toBeGreaterThan(0);
+      });
+
+      it('should match batch results after init', () => {
+        const batchResult = frvp(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES, 10);
+
+        const stream = new FrvpStream(10);
+        const streamResult = stream.init(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES);
+
+        expect(streamResult).toBeDefined();
+        assertClose(streamResult!.poc, batchResult.poc, 0.001);
+        assertClose(streamResult!.vah, batchResult.vah, 0.001);
+        assertClose(streamResult!.val, batchResult.val, 0.001);
+        assertClose(streamResult!.totalVolume, batchResult.totalVolume, 0.01);
+      });
+
+      it('should reset correctly', () => {
+        const stream = new FrvpStream(10);
+        stream.init(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES);
+
+        expect(stream.isReady()).toBe(true);
+        expect(stream.candleCount).toBeGreaterThan(0);
+
+        stream.reset();
+
+        expect(stream.isReady()).toBe(false);
+        expect(stream.candleCount).toBe(0);
+      });
+
+      it('should clear candles correctly', () => {
+        const stream = new FrvpStream(10);
+        stream.init(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES);
+
+        stream.clear();
+
+        expect(stream.isReady()).toBe(false);
+        expect(stream.candleCount).toBe(0);
+      });
+
+      it('should have correct numBins getter', () => {
+        const stream = new FrvpStream(50);
+        expect(stream.numBins).toBe(50);
+      });
+
+      it('should support custom value area percentage', () => {
+        const stream = new FrvpStream(10, 0.80);
+        const result = stream.init(SAMPLE_HIGHS, SAMPLE_LOWS, SAMPLE_CLOSES, SAMPLE_VOLUMES);
+
+        expect(result).toBeDefined();
+        // 80% should capture more volume than default 70%
+        const vaRatio = result!.valueAreaVolume / result!.totalVolume;
+        expect(vaRatio).toBeGreaterThanOrEqual(0.75);
+      });
+    });
+
+    describe('Volume Distribution', () => {
+      it('should distribute volume evenly for uniform candle', () => {
+        // Single candle spanning 100-110 with 1000 volume
+        const highs = new Float64Array([110]);
+        const lows = new Float64Array([100]);
+        const closes = new Float64Array([105]);
+        const volumes = new Float64Array([1000]);
+
+        const result = frvp(highs, lows, closes, volumes, 10);
+
+        // Each of 10 bins should have ~100 volume
+        const binVolumes = Array.from(result.histogram.volumes);
+        for (const vol of binVolumes) {
+          assertClose(vol, 100, 5); // Allow small floating point variance
+        }
+      });
+
+      it('should concentrate volume at high-activity levels', () => {
+        // Create data with concentrated activity in the 105-110 range
+        const highs = new Float64Array([106, 110, 108, 107, 109]);
+        const lows = new Float64Array([104, 107, 105, 104, 106]);
+        const closes = new Float64Array([105, 109, 106, 106, 108]);
+        const volumes = new Float64Array([1000, 2000, 1500, 1000, 1500]);
+
+        const result = frvp(highs, lows, closes, volumes, 20);
+
+        // POC should be in the concentrated area
+        expect(result.poc).toBeGreaterThanOrEqual(104);
+        expect(result.poc).toBeLessThanOrEqual(110);
+      });
+    });
+
+    describe('Edge Cases', () => {
+      it('should handle flat price (no range)', () => {
+        const highs = new Float64Array([100, 100]);
+        const lows = new Float64Array([100, 100]);
+        const closes = new Float64Array([100, 100]);
+        const volumes = new Float64Array([500, 500]);
+
+        const result = frvp(highs, lows, closes, volumes, 10);
+
+        // All prices should be at 100
+        expect(result.poc).toBe(100);
+        assertClose(result.totalVolume, 1000, 0.01);
+      });
+
+      it('should handle zero volume candles', () => {
+        const highs = new Float64Array([110, 115]);
+        const lows = new Float64Array([100, 105]);
+        const closes = new Float64Array([105, 110]);
+        const volumes = new Float64Array([0, 1000]); // First candle has zero volume
+
+        const result = frvp(highs, lows, closes, volumes, 10);
+
+        // Should still work, total volume = 1000
+        assertClose(result.totalVolume, 1000, 0.01);
       });
     });
   });

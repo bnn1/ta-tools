@@ -6,11 +6,11 @@ use wasm_bindgen::prelude::*;
 
 use crate::indicators::{
     Atr, AtrBar, AtrStream, BBands, BBandsOutput, BBandsStream, Cvd, CvdBar, CvdOhlcv,
-    CvdOhlcvStream, CvdStream, Ema, EmaStream, Macd, MacdOutput, MacdStream, Rsi, RsiStream,
-    Sma, SmaStream, Stoch, StochBar, StochOutput, StochStream, StochType, StochRsi,
-    StochRsiOutput, StochRsiStream, Wma, WmaStream,
-    SessionVwap, SessionVwapStream, RollingVwap, RollingVwapStream, AnchoredVwap, AnchoredVwapStream,
-    PivotPoints, PivotPointsOutput, PivotPointsVariant,
+    CvdOhlcvStream, CvdStream, Ema, EmaStream, Frvp, FrvpOutput, FrvpStream, Macd, MacdOutput,
+    MacdStream, PivotPoints, PivotPointsOutput, PivotPointsVariant, Rsi, RsiStream, Sma,
+    SmaStream, Stoch, StochBar, StochOutput, StochStream, StochType, StochRsi, StochRsiOutput,
+    StochRsiStream, Wma, WmaStream, SessionVwap, SessionVwapStream, RollingVwap, RollingVwapStream,
+    AnchoredVwap, AnchoredVwapStream, VolumeProfileRow,
 };
 use crate::traits::{Indicator, StreamingIndicator};
 use crate::types::OHLCV;
@@ -1928,4 +1928,332 @@ pub fn pivot_points_batch(
     .map_err(|_| JsError::new("Failed to set s3 property"))?;
 
     Ok(obj.into())
+}
+
+// ============================================================================
+// Fixed Range Volume Profile (FRVP)
+// ============================================================================
+
+/// Single row in the volume profile histogram returned to JavaScript.
+#[wasm_bindgen(js_name = "VolumeProfileRow")]
+pub struct WasmVolumeProfileRow {
+    price_val: f64,
+    volume_val: f64,
+    low_val: f64,
+    high_val: f64,
+}
+
+#[wasm_bindgen(js_class = "VolumeProfileRow")]
+impl WasmVolumeProfileRow {
+    /// Price level (center of the bin)
+    #[wasm_bindgen(getter)]
+    pub fn price(&self) -> f64 {
+        self.price_val
+    }
+
+    /// Volume at this price level
+    #[wasm_bindgen(getter)]
+    pub fn volume(&self) -> f64 {
+        self.volume_val
+    }
+
+    /// Lower bound of the price bin
+    #[wasm_bindgen(getter)]
+    pub fn low(&self) -> f64 {
+        self.low_val
+    }
+
+    /// Upper bound of the price bin
+    #[wasm_bindgen(getter)]
+    pub fn high(&self) -> f64 {
+        self.high_val
+    }
+}
+
+impl From<VolumeProfileRow> for WasmVolumeProfileRow {
+    fn from(row: VolumeProfileRow) -> Self {
+        Self {
+            price_val: row.price,
+            volume_val: row.volume,
+            low_val: row.low,
+            high_val: row.high,
+        }
+    }
+}
+
+/// FRVP output returned to JavaScript.
+#[wasm_bindgen(js_name = "FrvpOutput")]
+pub struct WasmFrvpOutput {
+    poc_val: f64,
+    vah_val: f64,
+    val_val: f64,
+    total_volume_val: f64,
+    poc_volume_val: f64,
+    value_area_volume_val: f64,
+    range_high_val: f64,
+    range_low_val: f64,
+    histogram_prices: Vec<f64>,
+    histogram_volumes: Vec<f64>,
+    histogram_lows: Vec<f64>,
+    histogram_highs: Vec<f64>,
+}
+
+#[wasm_bindgen(js_class = "FrvpOutput")]
+impl WasmFrvpOutput {
+    /// Point of Control - price level with highest volume
+    #[wasm_bindgen(getter)]
+    pub fn poc(&self) -> f64 {
+        self.poc_val
+    }
+
+    /// Value Area High - upper boundary of value area
+    #[wasm_bindgen(getter)]
+    pub fn vah(&self) -> f64 {
+        self.vah_val
+    }
+
+    /// Value Area Low - lower boundary of value area
+    #[wasm_bindgen(getter)]
+    pub fn val(&self) -> f64 {
+        self.val_val
+    }
+
+    /// Total volume in the range
+    #[wasm_bindgen(getter, js_name = "totalVolume")]
+    pub fn total_volume(&self) -> f64 {
+        self.total_volume_val
+    }
+
+    /// Volume at POC
+    #[wasm_bindgen(getter, js_name = "pocVolume")]
+    pub fn poc_volume(&self) -> f64 {
+        self.poc_volume_val
+    }
+
+    /// Volume within the Value Area
+    #[wasm_bindgen(getter, js_name = "valueAreaVolume")]
+    pub fn value_area_volume(&self) -> f64 {
+        self.value_area_volume_val
+    }
+
+    /// Highest price in the range
+    #[wasm_bindgen(getter, js_name = "rangeHigh")]
+    pub fn range_high(&self) -> f64 {
+        self.range_high_val
+    }
+
+    /// Lowest price in the range
+    #[wasm_bindgen(getter, js_name = "rangeLow")]
+    pub fn range_low(&self) -> f64 {
+        self.range_low_val
+    }
+
+    /// Get histogram as a JavaScript object with arrays
+    #[wasm_bindgen(getter)]
+    pub fn histogram(&self) -> JsValue {
+        let obj = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("prices"),
+            &js_sys::Float64Array::from(&self.histogram_prices[..]).into(),
+        );
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("volumes"),
+            &js_sys::Float64Array::from(&self.histogram_volumes[..]).into(),
+        );
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("lows"),
+            &js_sys::Float64Array::from(&self.histogram_lows[..]).into(),
+        );
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("highs"),
+            &js_sys::Float64Array::from(&self.histogram_highs[..]).into(),
+        );
+        obj.into()
+    }
+}
+
+impl From<FrvpOutput> for WasmFrvpOutput {
+    fn from(output: FrvpOutput) -> Self {
+        let histogram_prices: Vec<f64> = output.histogram.iter().map(|r| r.price).collect();
+        let histogram_volumes: Vec<f64> = output.histogram.iter().map(|r| r.volume).collect();
+        let histogram_lows: Vec<f64> = output.histogram.iter().map(|r| r.low).collect();
+        let histogram_highs: Vec<f64> = output.histogram.iter().map(|r| r.high).collect();
+
+        Self {
+            poc_val: output.poc,
+            vah_val: output.vah,
+            val_val: output.val,
+            total_volume_val: output.total_volume,
+            poc_volume_val: output.poc_volume,
+            value_area_volume_val: output.value_area_volume,
+            range_high_val: output.range_high,
+            range_low_val: output.range_low,
+            histogram_prices,
+            histogram_volumes,
+            histogram_lows,
+            histogram_highs,
+        }
+    }
+}
+
+/// Calculate Fixed Range Volume Profile.
+///
+/// Takes OHLCV arrays and returns volume profile with POC, VAH, VAL.
+///
+/// @param highs - Array of high prices
+/// @param lows - Array of low prices
+/// @param closes - Array of close prices
+/// @param volumes - Array of volumes
+/// @param numBins - Number of price bins (rows) in histogram (default 100)
+/// @param valueAreaPercent - Percentage of volume for value area (0.0-1.0, default 0.70)
+#[wasm_bindgen(js_name = "frvp")]
+pub fn frvp_batch(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    volumes: &[f64],
+    num_bins: Option<usize>,
+    value_area_percent: Option<f64>,
+) -> Result<WasmFrvpOutput, JsError> {
+    let len = highs.len();
+    if lows.len() != len || closes.len() != len || volumes.len() != len {
+        return Err(JsError::new(
+            "highs, lows, closes, and volumes must have the same length",
+        ));
+    }
+
+    // Build OHLCV from arrays (using dummy timestamp and open)
+    let candles: Vec<OHLCV> = highs
+        .iter()
+        .zip(lows.iter())
+        .zip(closes.iter())
+        .zip(volumes.iter())
+        .enumerate()
+        .map(|(i, (((&h, &l), &c), &v))| OHLCV::new(i as i64, l, h, l, c, v))
+        .collect();
+
+    let num_bins = num_bins.unwrap_or(100);
+    let value_area_percent = value_area_percent.unwrap_or(0.70);
+
+    let frvp = Frvp::with_value_area(num_bins, value_area_percent)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+    let result = frvp
+        .calculate(&candles)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+    Ok(WasmFrvpOutput::from(result))
+}
+
+/// Streaming FRVP calculator for real-time updates.
+#[wasm_bindgen(js_name = "FrvpStream")]
+pub struct WasmFrvpStream {
+    inner: FrvpStream,
+}
+
+#[wasm_bindgen(js_class = "FrvpStream")]
+impl WasmFrvpStream {
+    /// Create a new streaming FRVP calculator.
+    ///
+    /// @param numBins - Number of price bins (rows) in histogram
+    /// @param valueAreaPercent - Optional percentage of volume for value area (0.0-1.0, default 0.70)
+    #[wasm_bindgen(constructor)]
+    pub fn new(num_bins: usize, value_area_percent: Option<f64>) -> Result<WasmFrvpStream, JsError> {
+        let inner = match value_area_percent {
+            Some(pct) => FrvpStream::with_value_area(num_bins, pct),
+            None => FrvpStream::new(num_bins),
+        }
+        .map_err(|e| JsError::new(&e.to_string()))?;
+
+        Ok(Self { inner })
+    }
+
+    /// Initialize with historical OHLCV data.
+    ///
+    /// @param highs - Array of high prices
+    /// @param lows - Array of low prices
+    /// @param closes - Array of close prices
+    /// @param volumes - Array of volumes
+    /// @returns FRVP output for the entire range
+    #[wasm_bindgen(js_name = "init")]
+    pub fn init_history(
+        &mut self,
+        highs: &[f64],
+        lows: &[f64],
+        closes: &[f64],
+        volumes: &[f64],
+    ) -> Result<Option<WasmFrvpOutput>, JsError> {
+        let len = highs.len();
+        if lows.len() != len || closes.len() != len || volumes.len() != len {
+            return Err(JsError::new(
+                "highs, lows, closes, and volumes must have the same length",
+            ));
+        }
+
+        let candles: Vec<OHLCV> = highs
+            .iter()
+            .zip(lows.iter())
+            .zip(closes.iter())
+            .zip(volumes.iter())
+            .enumerate()
+            .map(|(i, (((&h, &l), &c), &v))| OHLCV::new(i as i64, l, h, l, c, v))
+            .collect();
+
+        let results = self
+            .inner
+            .init(&candles)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+
+        Ok(results.into_iter().next().map(WasmFrvpOutput::from))
+    }
+
+    /// Process next candle.
+    ///
+    /// @param high - High price
+    /// @param low - Low price
+    /// @param close - Close price
+    /// @param volume - Volume
+    /// @returns Updated FRVP output or undefined if not ready
+    pub fn next(
+        &mut self,
+        high: f64,
+        low: f64,
+        close: f64,
+        volume: f64,
+    ) -> Option<WasmFrvpOutput> {
+        let candle = OHLCV::new(0, low, high, low, close, volume);
+        self.inner.next(candle).map(WasmFrvpOutput::from)
+    }
+
+    /// Reset the calculator and clear all candles.
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Check if calculator has been initialized with data.
+    #[wasm_bindgen(js_name = "isReady")]
+    pub fn is_ready(&self) -> bool {
+        self.inner.is_ready()
+    }
+
+    /// Get the number of price bins.
+    #[wasm_bindgen(getter, js_name = "numBins")]
+    pub fn num_bins(&self) -> usize {
+        self.inner.num_bins()
+    }
+
+    /// Get the number of candles in the buffer.
+    #[wasm_bindgen(getter, js_name = "candleCount")]
+    pub fn candle_count(&self) -> usize {
+        self.inner.candle_count()
+    }
+
+    /// Clear all candles from the buffer.
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
 }
