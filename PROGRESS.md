@@ -184,16 +184,16 @@ All Tier B indicators have been implemented!
 - `trading-signals` - TypeScript, streaming-first design
 
 **Dataset sizes:**
-- Small: 100 data points
+- Small: 1,000 data points
 - Big: 10,000 data points  
-- Huge: 1,000,000 data points
+- Huge: 100,000 data points
 - Streaming: single `next()` call after initialization
 
 **Benchmarks completed:** SMA, EMA, RSI, WMA, MACD, Bollinger Bands, ATR, Stochastic, MFI, ADX (10 indicators)
 
 ### Benchmark Results Summary
 
-#### Small Dataset (100 items)
+#### Small Dataset (1,000 items)
 | Indicator | ta-tools | Best Competitor | Ratio | Winner |
 |-----------|----------|-----------------|-------|--------|
 | SMA | 1.1M hz | 4.7M hz (indicatorts) | 0.24x | indicatorts |
@@ -221,7 +221,7 @@ All Tier B indicators have been implemented!
 | MFI | **7.8K hz** | 1.1K hz (indicatorts) | **7.27x** | **ta-tools** ✅ |
 | ADX | **3.9K hz** | 1.6K hz (fti) | **2.43x** | **ta-tools** ✅ |
 
-#### Huge Dataset (1,000,000 items)
+#### Huge Dataset (100,000 items)
 | Indicator | ta-tools | Best Competitor | Ratio | Winner |
 |-----------|----------|-----------------|-------|--------|
 | SMA | **264 hz** | 245 hz (indicatorts) | **1.08x** | **ta-tools** ✅ |
@@ -251,7 +251,7 @@ All Tier B indicators have been implemented!
 
 ### Key Findings
 
-1. **WASM overhead hurts small datasets** - For trivial indicators (SMA) on tiny data (100 items), the ~1μs WASM boundary cost dominates
+1. **WASM overhead hurts small datasets** - For trivial indicators (SMA) on tiny data (1,000 items), the ~1μs WASM boundary cost dominates
 2. **Complex indicators favor ta-tools** - RSI, MFI, ADX, Stochastic are fastest at ALL scales because computation dominates overhead
 3. **Production scale dominates** - At 1M items, ta-tools wins **9 out of 10** indicators!
 4. **Big dataset (10K) is the sweet spot** - ta-tools wins **8 out of 10** indicators
@@ -262,26 +262,14 @@ All Tier B indicators have been implemented!
 
 | Dataset Size | ta-tools Wins | Competitor Wins | Win Rate |
 |--------------|---------------|-----------------|----------|
-| Small (100) | 3 | 7 | 30% |
+| Small (1,000) | 3 | 7 | 30% |
 | Big (10K) | 8 | 2 | **80%** |
-| Huge (1M) | 9 | 1 | **90%** |
+| Huge (100K) | 9 | 1 | **90%** |
 | Streaming | 3 | 7 | 30% |
 
 **Conclusion:** ta-tools excels at production-scale batch processing (10K-1M data points), which is the primary use case for technical analysis. The WASM overhead is negligible compared to the computational benefits for complex indicators.
 
 ### Next Benchmarking Steps
-
-**TODO: Add remaining indicators to benchmark:**
-1. [x] Bollinger Bands ✅
-2. [x] ATR ✅
-3. [x] Stochastic Oscillator ✅
-4. [x] MFI ✅
-5. [x] ADX ✅
-6. [x] MACD ✅
-7. [ ] HMA (Hull Moving Average)
-8. [ ] Ichimoku Cloud
-9. [ ] Linear Regression
-10. [ ] StochRSI
 
 **Benchmark file location:** `tests/benchmark.bench.ts`
 

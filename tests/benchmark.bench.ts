@@ -16,6 +16,12 @@ import {
   hma,
   ichimoku,
   linreg,
+  sessionVwap,
+  rollingVwap,
+  anchoredVwap,
+  cvdOhlcv,
+  pivotPointsBatch,
+  frvp,
   SmaStream,
   EmaStream,
   RsiStream,
@@ -30,6 +36,10 @@ import {
   HmaStream,
   IchimokuStream,
   LinRegStream,
+  SessionVwapStream,
+  RollingVwapStream,
+  CvdOhlcvStream,
+  FrvpStream,
 } from "../dist/index.js";
 
 // fast-technical-indicators
@@ -71,6 +81,7 @@ import {
   stoch as itStoch,
   mfi as itMfi,
   ichimokuCloud as itIchimoku,
+  vwap as itVwap,
 } from "indicatorts";
 
 // trading-signals (streaming-first library)
@@ -109,10 +120,14 @@ const generatePrices = (count: number): number[] => {
 
 // Generate OHLCV data for indicators that need it
 interface OHLCVData {
+  timestamp: number[];
+  open: number[];
   high: number[];
   low: number[];
   close: number[];
   volume: number[];
+  timestampF64: Float64Array;
+  openF64: Float64Array;
   highF64: Float64Array;
   lowF64: Float64Array;
   closeF64: Float64Array;
@@ -120,32 +135,44 @@ interface OHLCVData {
 }
 
 const generateOHLCV = (count: number): OHLCVData => {
+  const timestamp: number[] = [];
+  const open: number[] = [];
   const high: number[] = [];
   const low: number[] = [];
   const close: number[] = [];
   const volume: number[] = [];
   let basePrice = 100;
+  // Start timestamp: 2024-01-01 00:00:00 UTC
+  let ts = 1704067200000;
 
   for (let i = 0; i < count; i++) {
     const volatility = Math.random() * 2 + 0.5;
+    const o = basePrice;
     const h = basePrice + volatility;
     const l = basePrice - volatility;
     const c = l + Math.random() * (h - l);
     const v = Math.floor(Math.random() * 1000000) + 100000;
 
+    timestamp.push(ts);
+    open.push(o);
     high.push(h);
     low.push(l);
     close.push(c);
     volume.push(v);
 
     basePrice = c + (Math.random() - 0.5) * 1;
+    ts += 60000; // 1 minute candles
   }
 
   return {
+    timestamp,
+    open,
     high,
     low,
     close,
     volume,
+    timestampF64: new Float64Array(timestamp),
+    openF64: new Float64Array(open),
     highF64: new Float64Array(high),
     lowF64: new Float64Array(low),
     closeF64: new Float64Array(close),
@@ -1348,6 +1375,412 @@ describe("Linear Regression", () => {
 
     bench("ta-tools (WASM)", () => {
       taStream.next(100.5);
+    });
+  });
+});
+
+// ============================================================================
+// VWAP (Volume Weighted Average Price) Benchmarks
+// ============================================================================
+
+describe("VWAP (Volume Weighted Average Price)", () => {
+  describe("Session VWAP - Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      sessionVwap(
+        SMALL_OHLCV.timestampF64,
+        SMALL_OHLCV.openF64,
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        SMALL_OHLCV.volumeF64
+      );
+    });
+
+    bench("indicatorts", () => {
+      itVwap(SMALL_OHLCV.close, SMALL_OHLCV.volume, { period: 14 });
+    });
+  });
+
+  describe("Session VWAP - Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      sessionVwap(
+        BIG_OHLCV.timestampF64,
+        BIG_OHLCV.openF64,
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        BIG_OHLCV.volumeF64
+      );
+    });
+
+    bench("indicatorts", () => {
+      itVwap(BIG_OHLCV.close, BIG_OHLCV.volume, { period: 14 });
+    });
+  });
+
+  describe("Session VWAP - Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      sessionVwap(
+        HUGE_OHLCV.timestampF64,
+        HUGE_OHLCV.openF64,
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        HUGE_OHLCV.volumeF64
+      );
+    });
+
+    bench("indicatorts", () => {
+      itVwap(HUGE_OHLCV.close, HUGE_OHLCV.volume, { period: 14 });
+    });
+  });
+
+  describe("Rolling VWAP - Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      rollingVwap(
+        SMALL_OHLCV.timestampF64,
+        SMALL_OHLCV.openF64,
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        SMALL_OHLCV.volumeF64,
+        20
+      );
+    });
+  });
+
+  describe("Rolling VWAP - Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      rollingVwap(
+        BIG_OHLCV.timestampF64,
+        BIG_OHLCV.openF64,
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        BIG_OHLCV.volumeF64,
+        20
+      );
+    });
+  });
+
+  describe("Rolling VWAP - Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      rollingVwap(
+        HUGE_OHLCV.timestampF64,
+        HUGE_OHLCV.openF64,
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        HUGE_OHLCV.volumeF64,
+        20
+      );
+    });
+  });
+
+  describe("Anchored VWAP - Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      anchoredVwap(
+        SMALL_OHLCV.timestampF64,
+        SMALL_OHLCV.openF64,
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        SMALL_OHLCV.volumeF64,
+        100 // anchor at index 100
+      );
+    });
+  });
+
+  describe("Anchored VWAP - Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      anchoredVwap(
+        BIG_OHLCV.timestampF64,
+        BIG_OHLCV.openF64,
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        BIG_OHLCV.volumeF64,
+        1000 // anchor at index 1000
+      );
+    });
+  });
+
+  describe("Anchored VWAP - Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      anchoredVwap(
+        HUGE_OHLCV.timestampF64,
+        HUGE_OHLCV.openF64,
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        HUGE_OHLCV.volumeF64,
+        10000 // anchor at index 10000
+      );
+    });
+  });
+
+  describe("Streaming - Session VWAP (single next() call)", () => {
+    const taStream = new SessionVwapStream();
+    taStream.init(
+      BIG_OHLCV.timestampF64,
+      BIG_OHLCV.openF64,
+      BIG_OHLCV.highF64,
+      BIG_OHLCV.lowF64,
+      BIG_OHLCV.closeF64,
+      BIG_OHLCV.volumeF64
+    );
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(Date.now(), 100.0, 100.5, 99.5, 100.2, 500000);
+    });
+  });
+
+  describe("Streaming - Rolling VWAP (single next() call)", () => {
+    const taStream = new RollingVwapStream(20);
+    taStream.init(
+      BIG_OHLCV.timestampF64,
+      BIG_OHLCV.openF64,
+      BIG_OHLCV.highF64,
+      BIG_OHLCV.lowF64,
+      BIG_OHLCV.closeF64,
+      BIG_OHLCV.volumeF64
+    );
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(Date.now(), 100.0, 100.5, 99.5, 100.2, 500000);
+    });
+  });
+});
+
+// ============================================================================
+// CVD (Cumulative Volume Delta) Benchmarks
+// Note: No competitor libraries have CVD - ta-tools exclusive
+// ============================================================================
+
+describe("CVD (Cumulative Volume Delta)", () => {
+  describe("Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      cvdOhlcv(
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        SMALL_OHLCV.volumeF64
+      );
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      cvdOhlcv(
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        BIG_OHLCV.volumeF64
+      );
+    });
+  });
+
+  describe("Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      cvdOhlcv(
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        HUGE_OHLCV.volumeF64
+      );
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new CvdOhlcvStream();
+    taStream.init(
+      BIG_OHLCV.highF64,
+      BIG_OHLCV.lowF64,
+      BIG_OHLCV.closeF64,
+      BIG_OHLCV.volumeF64
+    );
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5, 99.5, 100.2, 500000);
+    });
+  });
+});
+
+// ============================================================================
+// Pivot Points Benchmarks
+// Note: No competitor libraries have Pivot Points - ta-tools exclusive
+// ============================================================================
+
+describe("Pivot Points", () => {
+  describe("Standard Pivot - Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        "standard"
+      );
+    });
+  });
+
+  describe("Standard Pivot - Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        "standard"
+      );
+    });
+  });
+
+  describe("Standard Pivot - Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        "standard"
+      );
+    });
+  });
+
+  describe("Fibonacci Pivot - Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        "fibonacci"
+      );
+    });
+  });
+
+  describe("Fibonacci Pivot - Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        "fibonacci"
+      );
+    });
+  });
+
+  describe("Fibonacci Pivot - Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        "fibonacci"
+      );
+    });
+  });
+
+  describe("Woodie Pivot - Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        "woodie"
+      );
+    });
+  });
+
+  describe("Woodie Pivot - Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        "woodie"
+      );
+    });
+  });
+
+  describe("Woodie Pivot - Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      pivotPointsBatch(
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        "woodie"
+      );
+    });
+  });
+});
+
+// ============================================================================
+// FRVP (Fixed Range Volume Profile) Benchmarks
+// Note: No competitor libraries have Volume Profile - ta-tools exclusive
+// ============================================================================
+
+describe("FRVP (Fixed Range Volume Profile)", () => {
+  describe("Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      frvp(
+        SMALL_OHLCV.highF64,
+        SMALL_OHLCV.lowF64,
+        SMALL_OHLCV.closeF64,
+        SMALL_OHLCV.volumeF64,
+        100, // 100 price bins
+        0.70 // 70% value area
+      );
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      frvp(
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        BIG_OHLCV.volumeF64,
+        100,
+        0.70
+      );
+    });
+  });
+
+  describe("Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      frvp(
+        HUGE_OHLCV.highF64,
+        HUGE_OHLCV.lowF64,
+        HUGE_OHLCV.closeF64,
+        HUGE_OHLCV.volumeF64,
+        100,
+        0.70
+      );
+    });
+  });
+
+  describe("High resolution (500 bins) - Big dataset", () => {
+    bench("ta-tools (WASM)", () => {
+      frvp(
+        BIG_OHLCV.highF64,
+        BIG_OHLCV.lowF64,
+        BIG_OHLCV.closeF64,
+        BIG_OHLCV.volumeF64,
+        500, // Higher resolution
+        0.70
+      );
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new FrvpStream(100);
+    taStream.init(
+      BIG_OHLCV.highF64,
+      BIG_OHLCV.lowF64,
+      BIG_OHLCV.closeF64,
+      BIG_OHLCV.volumeF64
+    );
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5, 99.5, 100.2, 500000);
     });
   });
 });
