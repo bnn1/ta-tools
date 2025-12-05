@@ -10,8 +10,12 @@ import {
   bbands,
   atr,
   stochFast,
+  stochRsi,
   mfi,
   adx,
+  hma,
+  ichimoku,
+  linreg,
   SmaStream,
   EmaStream,
   RsiStream,
@@ -20,8 +24,12 @@ import {
   BBandsStream,
   AtrStream,
   StochFastStream,
+  StochRsiStream,
   MfiStream,
   AdxStream,
+  HmaStream,
+  IchimokuStream,
+  LinRegStream,
 } from "../dist/index.js";
 
 // fast-technical-indicators
@@ -34,8 +42,10 @@ import {
   bollingerbands as ftiBBands,
   atr as ftiAtr,
   stochastic as ftiStoch,
+  stochasticrsi as ftiStochRsi,
   mfi as ftiMfi,
   adx as ftiAdx,
+  ichimokucloud as ftiIchimoku,
   SMA as FtiSmaStream,
   EMA as FtiEmaStream,
   RSI as FtiRsiStream,
@@ -44,8 +54,10 @@ import {
   BollingerBands as FtiBBandsStream,
   ATR as FtiAtrStream,
   Stochastic as FtiStochStream,
+  StochasticRSI as FtiStochRsiStream,
   MFI as FtiMfiStream,
   ADX as FtiAdxStream,
+  IchimokuCloud as FtiIchimokuStream,
 } from "fast-technical-indicators";
 
 // indicatorts
@@ -58,6 +70,7 @@ import {
   atr as itAtr,
   stoch as itStoch,
   mfi as itMfi,
+  ichimokuCloud as itIchimoku,
 } from "indicatorts";
 
 // trading-signals (streaming-first library)
@@ -141,25 +154,25 @@ const generateOHLCV = (count: number): OHLCVData => {
 };
 
 // Dataset sizes per requirements: 100, 10K, 1M
-const SMALL_DATA = generatePrices(100);
+const SMALL_DATA = generatePrices(1_000);
 const BIG_DATA = generatePrices(10_000);
-const HUGE_DATA = generatePrices(1_000_000);
+const HUGE_DATA = generatePrices(100_000);
 
 const SMALL_F64 = new Float64Array(SMALL_DATA);
 const BIG_F64 = new Float64Array(BIG_DATA);
 const HUGE_F64 = new Float64Array(HUGE_DATA);
 
 // OHLCV datasets
-const SMALL_OHLCV = generateOHLCV(100);
+const SMALL_OHLCV = generateOHLCV(1000);
 const BIG_OHLCV = generateOHLCV(10_000);
-const HUGE_OHLCV = generateOHLCV(1_000_000);
+const HUGE_OHLCV = generateOHLCV(100_000);
 
 // ============================================================================
 // SMA Benchmarks
 // ============================================================================
 
 describe("SMA (Simple Moving Average)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       sma(SMALL_F64, 14);
     });
@@ -197,7 +210,7 @@ describe("SMA (Simple Moving Average)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       sma(HUGE_F64, 14);
     });
@@ -244,7 +257,7 @@ describe("SMA (Simple Moving Average)", () => {
 // ============================================================================
 
 describe("EMA (Exponential Moving Average)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       ema(SMALL_F64, 14);
     });
@@ -282,7 +295,7 @@ describe("EMA (Exponential Moving Average)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       ema(HUGE_F64, 14);
     });
@@ -329,7 +342,7 @@ describe("EMA (Exponential Moving Average)", () => {
 // ============================================================================
 
 describe("RSI (Relative Strength Index)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       rsi(SMALL_F64, 14);
     });
@@ -367,7 +380,7 @@ describe("RSI (Relative Strength Index)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       rsi(HUGE_F64, 14);
     });
@@ -414,7 +427,7 @@ describe("RSI (Relative Strength Index)", () => {
 // ============================================================================
 
 describe("WMA (Weighted Moving Average)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       wma(SMALL_F64, 14);
     });
@@ -444,7 +457,7 @@ describe("WMA (Weighted Moving Average)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       wma(HUGE_F64, 14);
     });
@@ -487,7 +500,7 @@ describe("WMA (Weighted Moving Average)", () => {
 // ============================================================================
 
 describe("MACD (Moving Average Convergence Divergence)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       macd(SMALL_F64, 12, 26, 9);
     });
@@ -535,7 +548,7 @@ describe("MACD (Moving Average Convergence Divergence)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       macd(HUGE_F64, 12, 26, 9);
     });
@@ -592,7 +605,7 @@ describe("MACD (Moving Average Convergence Divergence)", () => {
 // ============================================================================
 
 describe("Bollinger Bands", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       bbands(SMALL_F64, 20, 2.0);
     });
@@ -630,7 +643,7 @@ describe("Bollinger Bands", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       bbands(HUGE_F64, 20, 2.0);
     });
@@ -677,7 +690,7 @@ describe("Bollinger Bands", () => {
 // ============================================================================
 
 describe("ATR (Average True Range)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       atr(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, 14);
     });
@@ -729,7 +742,7 @@ describe("ATR (Average True Range)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       atr(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, 14);
     });
@@ -790,7 +803,7 @@ describe("ATR (Average True Range)", () => {
 // ============================================================================
 
 describe("Stochastic Oscillator", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       stochFast(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, 14, 3);
     });
@@ -844,7 +857,7 @@ describe("Stochastic Oscillator", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       stochFast(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, 14, 3);
     });
@@ -910,7 +923,7 @@ describe("Stochastic Oscillator", () => {
 // ============================================================================
 
 describe("MFI (Money Flow Index)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       mfi(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, SMALL_OHLCV.volumeF64, 14);
     });
@@ -950,7 +963,7 @@ describe("MFI (Money Flow Index)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       mfi(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, HUGE_OHLCV.volumeF64, 14);
     });
@@ -997,7 +1010,7 @@ describe("MFI (Money Flow Index)", () => {
 // ============================================================================
 
 describe("ADX (Average Directional Index)", () => {
-  describe("Small dataset (100 items)", () => {
+  describe("Small dataset (1,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       adx(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, 14);
     });
@@ -1041,7 +1054,7 @@ describe("ADX (Average Directional Index)", () => {
     });
   });
 
-  describe("Huge dataset (1,000,000 items)", () => {
+  describe("Huge dataset (100,000 items)", () => {
     bench("ta-tools (WASM)", () => {
       adx(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, 14);
     });
@@ -1089,6 +1102,252 @@ describe("ADX (Average Directional Index)", () => {
 
     bench("trading-signals", () => {
       tsStream.add({ high: 100.5, low: 99.5, close: 100.0 });
+    });
+  });
+});
+
+// ============================================================================
+// StochRSI (Stochastic RSI) Benchmarks
+// Note: trading-signals StochasticRSI has issues, only comparing with fti
+// ============================================================================
+
+describe("StochRSI (Stochastic RSI)", () => {
+  describe("Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      stochRsi(SMALL_F64, 14, 14, 3, 3);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStochRsi({
+        values: SMALL_DATA,
+        rsiPeriod: 14,
+        stochasticPeriod: 14,
+        kPeriod: 3,
+        dPeriod: 3,
+      });
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      stochRsi(BIG_F64, 14, 14, 3, 3);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStochRsi({
+        values: BIG_DATA,
+        rsiPeriod: 14,
+        stochasticPeriod: 14,
+        kPeriod: 3,
+        dPeriod: 3,
+      });
+    });
+  });
+
+  describe("Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      stochRsi(HUGE_F64, 14, 14, 3, 3);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStochRsi({
+        values: HUGE_DATA,
+        rsiPeriod: 14,
+        stochasticPeriod: 14,
+        kPeriod: 3,
+        dPeriod: 3,
+      });
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new StochRsiStream(14, 14, 3, 3);
+    taStream.init(BIG_F64);
+
+    const ftiStream = new FtiStochRsiStream({
+      values: BIG_DATA,
+      rsiPeriod: 14,
+      stochasticPeriod: 14,
+      kPeriod: 3,
+      dPeriod: 3,
+    });
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStream.nextValue(100.5);
+    });
+  });
+});
+
+// ============================================================================
+// HMA (Hull Moving Average) Benchmarks
+// Note: Only ta-tools has HMA - no competitor comparison possible
+// ============================================================================
+
+describe("HMA (Hull Moving Average)", () => {
+  describe("Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      hma(SMALL_F64, 14);
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      hma(BIG_F64, 14);
+    });
+  });
+
+  describe("Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      hma(HUGE_F64, 14);
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new HmaStream(14);
+    taStream.init(BIG_F64);
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5);
+    });
+  });
+});
+
+// ============================================================================
+// Ichimoku Cloud Benchmarks
+// ============================================================================
+
+describe("Ichimoku Cloud", () => {
+  describe("Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      ichimoku(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, 9, 26, 52);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiIchimoku({
+        high: SMALL_OHLCV.high,
+        low: SMALL_OHLCV.low,
+        conversionPeriod: 9,
+        basePeriod: 26,
+        spanPeriod: 52,
+        displacement: 26,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itIchimoku(SMALL_OHLCV.high, SMALL_OHLCV.low, SMALL_OHLCV.close, {
+        short: 9,
+        medium: 26,
+        long: 52,
+      });
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      ichimoku(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64, 9, 26, 52);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiIchimoku({
+        high: BIG_OHLCV.high,
+        low: BIG_OHLCV.low,
+        conversionPeriod: 9,
+        basePeriod: 26,
+        spanPeriod: 52,
+        displacement: 26,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itIchimoku(BIG_OHLCV.high, BIG_OHLCV.low, BIG_OHLCV.close, {
+        short: 9,
+        medium: 26,
+        long: 52,
+      });
+    });
+  });
+
+  describe("Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      ichimoku(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, 9, 26, 52);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiIchimoku({
+        high: HUGE_OHLCV.high,
+        low: HUGE_OHLCV.low,
+        conversionPeriod: 9,
+        basePeriod: 26,
+        spanPeriod: 52,
+        displacement: 26,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itIchimoku(HUGE_OHLCV.high, HUGE_OHLCV.low, HUGE_OHLCV.close, {
+        short: 9,
+        medium: 26,
+        long: 52,
+      });
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new IchimokuStream(9, 26, 52);
+    taStream.init(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64);
+
+    const ftiStream = new FtiIchimokuStream({
+      high: BIG_OHLCV.high,
+      low: BIG_OHLCV.low,
+      conversionPeriod: 9,
+      basePeriod: 26,
+      spanPeriod: 52,
+      displacement: 26,
+    });
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5, 99.5, 100.0);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStream.nextValue(100.5, 99.5);
+    });
+  });
+});
+
+// ============================================================================
+// Linear Regression Benchmarks
+// ============================================================================
+
+describe("Linear Regression", () => {
+  describe("Small dataset (1,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      linreg(SMALL_F64, 14, 2.0);
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      linreg(BIG_F64, 14, 2.0);
+    });
+  });
+
+  describe("Huge dataset (100,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      linreg(HUGE_F64, 14, 2.0);
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new LinRegStream(14, 2.0);
+    taStream.init(BIG_F64);
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5);
     });
   });
 });
