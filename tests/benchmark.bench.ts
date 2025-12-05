@@ -7,11 +7,21 @@ import {
   rsi,
   wma,
   macd,
+  bbands,
+  atr,
+  stochFast,
+  mfi,
+  adx,
   SmaStream,
   EmaStream,
   RsiStream,
   WmaStream,
   MacdStream,
+  BBandsStream,
+  AtrStream,
+  StochFastStream,
+  MfiStream,
+  AdxStream,
 } from "../dist/index.js";
 
 // fast-technical-indicators
@@ -21,11 +31,21 @@ import {
   rsi as ftiRsi,
   wma as ftiWma,
   macd as ftiMacd,
+  bollingerbands as ftiBBands,
+  atr as ftiAtr,
+  stochastic as ftiStoch,
+  mfi as ftiMfi,
+  adx as ftiAdx,
   SMA as FtiSmaStream,
   EMA as FtiEmaStream,
   RSI as FtiRsiStream,
   WMA as FtiWmaStream,
   MACD as FtiMacdStream,
+  BollingerBands as FtiBBandsStream,
+  ATR as FtiAtrStream,
+  Stochastic as FtiStochStream,
+  MFI as FtiMfiStream,
+  ADX as FtiAdxStream,
 } from "fast-technical-indicators";
 
 // indicatorts
@@ -34,6 +54,10 @@ import {
   ema as itEma,
   rsi as itRsi,
   macd as itMacd,
+  bb as itBBands,
+  atr as itAtr,
+  stoch as itStoch,
+  mfi as itMfi,
 } from "indicatorts";
 
 // trading-signals (streaming-first library)
@@ -43,6 +67,10 @@ import {
   RSI as TsRsi,
   WMA as TsWma,
   MACD as TsMacd,
+  BollingerBands as TsBBands,
+  ATR as TsAtr,
+  StochasticOscillator as TsStoch,
+  ADX as TsAdx,
 } from "trading-signals";
 
 // Helper to run trading-signals on array (it's streaming-first)
@@ -66,6 +94,52 @@ const generatePrices = (count: number): number[] => {
   return prices;
 };
 
+// Generate OHLCV data for indicators that need it
+interface OHLCVData {
+  high: number[];
+  low: number[];
+  close: number[];
+  volume: number[];
+  highF64: Float64Array;
+  lowF64: Float64Array;
+  closeF64: Float64Array;
+  volumeF64: Float64Array;
+}
+
+const generateOHLCV = (count: number): OHLCVData => {
+  const high: number[] = [];
+  const low: number[] = [];
+  const close: number[] = [];
+  const volume: number[] = [];
+  let basePrice = 100;
+
+  for (let i = 0; i < count; i++) {
+    const volatility = Math.random() * 2 + 0.5;
+    const h = basePrice + volatility;
+    const l = basePrice - volatility;
+    const c = l + Math.random() * (h - l);
+    const v = Math.floor(Math.random() * 1000000) + 100000;
+
+    high.push(h);
+    low.push(l);
+    close.push(c);
+    volume.push(v);
+
+    basePrice = c + (Math.random() - 0.5) * 1;
+  }
+
+  return {
+    high,
+    low,
+    close,
+    volume,
+    highF64: new Float64Array(high),
+    lowF64: new Float64Array(low),
+    closeF64: new Float64Array(close),
+    volumeF64: new Float64Array(volume),
+  };
+};
+
 // Dataset sizes per requirements: 100, 10K, 1M
 const SMALL_DATA = generatePrices(100);
 const BIG_DATA = generatePrices(10_000);
@@ -74,6 +148,11 @@ const HUGE_DATA = generatePrices(1_000_000);
 const SMALL_F64 = new Float64Array(SMALL_DATA);
 const BIG_F64 = new Float64Array(BIG_DATA);
 const HUGE_F64 = new Float64Array(HUGE_DATA);
+
+// OHLCV datasets
+const SMALL_OHLCV = generateOHLCV(100);
+const BIG_OHLCV = generateOHLCV(10_000);
+const HUGE_OHLCV = generateOHLCV(1_000_000);
 
 // ============================================================================
 // SMA Benchmarks
@@ -504,6 +583,512 @@ describe("MACD (Moving Average Convergence Divergence)", () => {
 
     bench("trading-signals", () => {
       tsStream.add(100.5);
+    });
+  });
+});
+
+// ============================================================================
+// Bollinger Bands Benchmarks
+// ============================================================================
+
+describe("Bollinger Bands", () => {
+  describe("Small dataset (100 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      bbands(SMALL_F64, 20, 2.0);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiBBands({ period: 20, stdDev: 2, values: SMALL_DATA });
+    });
+
+    bench("indicatorts", () => {
+      itBBands(SMALL_DATA, { period: 20 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsBBands(20, 2);
+      runTradingSignals(ts, SMALL_DATA);
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      bbands(BIG_F64, 20, 2.0);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiBBands({ period: 20, stdDev: 2, values: BIG_DATA });
+    });
+
+    bench("indicatorts", () => {
+      itBBands(BIG_DATA, { period: 20 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsBBands(20, 2);
+      runTradingSignals(ts, BIG_DATA);
+    });
+  });
+
+  describe("Huge dataset (1,000,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      bbands(HUGE_F64, 20, 2.0);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiBBands({ period: 20, stdDev: 2, values: HUGE_DATA });
+    });
+
+    bench("indicatorts", () => {
+      itBBands(HUGE_DATA, { period: 20 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsBBands(20, 2);
+      runTradingSignals(ts, HUGE_DATA);
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new BBandsStream(20, 2.0);
+    taStream.init(BIG_F64);
+
+    const ftiStream = new FtiBBandsStream({ period: 20, stdDev: 2, values: BIG_DATA });
+
+    const tsStream = new TsBBands(20, 2);
+    runTradingSignals(tsStream, BIG_DATA);
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStream.nextValue(100.5);
+    });
+
+    bench("trading-signals", () => {
+      tsStream.add(100.5);
+    });
+  });
+});
+
+// ============================================================================
+// ATR (Average True Range) Benchmarks
+// ============================================================================
+
+describe("ATR (Average True Range)", () => {
+  describe("Small dataset (100 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      atr(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiAtr({
+        period: 14,
+        high: SMALL_OHLCV.high,
+        low: SMALL_OHLCV.low,
+        close: SMALL_OHLCV.close,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itAtr(SMALL_OHLCV.high, SMALL_OHLCV.low, SMALL_OHLCV.close, { period: 14 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsAtr(14);
+      for (let i = 0; i < SMALL_OHLCV.close.length; i++) {
+        ts.add({ high: SMALL_OHLCV.high[i], low: SMALL_OHLCV.low[i], close: SMALL_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      atr(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiAtr({
+        period: 14,
+        high: BIG_OHLCV.high,
+        low: BIG_OHLCV.low,
+        close: BIG_OHLCV.close,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itAtr(BIG_OHLCV.high, BIG_OHLCV.low, BIG_OHLCV.close, { period: 14 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsAtr(14);
+      for (let i = 0; i < BIG_OHLCV.close.length; i++) {
+        ts.add({ high: BIG_OHLCV.high[i], low: BIG_OHLCV.low[i], close: BIG_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Huge dataset (1,000,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      atr(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiAtr({
+        period: 14,
+        high: HUGE_OHLCV.high,
+        low: HUGE_OHLCV.low,
+        close: HUGE_OHLCV.close,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itAtr(HUGE_OHLCV.high, HUGE_OHLCV.low, HUGE_OHLCV.close, { period: 14 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsAtr(14);
+      for (let i = 0; i < HUGE_OHLCV.close.length; i++) {
+        ts.add({ high: HUGE_OHLCV.high[i], low: HUGE_OHLCV.low[i], close: HUGE_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new AtrStream(14);
+    taStream.init(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64);
+
+    const ftiStream = new FtiAtrStream({
+      period: 14,
+      high: BIG_OHLCV.high,
+      low: BIG_OHLCV.low,
+      close: BIG_OHLCV.close,
+    });
+
+    const tsStream = new TsAtr(14);
+    for (let i = 0; i < BIG_OHLCV.close.length; i++) {
+      tsStream.add({ high: BIG_OHLCV.high[i], low: BIG_OHLCV.low[i], close: BIG_OHLCV.close[i] });
+    }
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5, 99.5, 100.0);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStream.nextValue(100.5, 99.5, 100.0);
+    });
+
+    bench("trading-signals", () => {
+      tsStream.add({ high: 100.5, low: 99.5, close: 100.0 });
+    });
+  });
+});
+
+// ============================================================================
+// Stochastic Oscillator Benchmarks
+// ============================================================================
+
+describe("Stochastic Oscillator", () => {
+  describe("Small dataset (100 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      stochFast(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, 14, 3);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStoch({
+        period: 14,
+        signalPeriod: 3,
+        high: SMALL_OHLCV.high,
+        low: SMALL_OHLCV.low,
+        close: SMALL_OHLCV.close,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itStoch(SMALL_OHLCV.high, SMALL_OHLCV.low, SMALL_OHLCV.close, { kPeriod: 14, dPeriod: 3 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsStoch(14, 3, 3);
+      for (let i = 0; i < SMALL_OHLCV.close.length; i++) {
+        ts.add({ high: SMALL_OHLCV.high[i], low: SMALL_OHLCV.low[i], close: SMALL_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      stochFast(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64, 14, 3);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStoch({
+        period: 14,
+        signalPeriod: 3,
+        high: BIG_OHLCV.high,
+        low: BIG_OHLCV.low,
+        close: BIG_OHLCV.close,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itStoch(BIG_OHLCV.high, BIG_OHLCV.low, BIG_OHLCV.close, { kPeriod: 14, dPeriod: 3 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsStoch(14, 3, 3);
+      for (let i = 0; i < BIG_OHLCV.close.length; i++) {
+        ts.add({ high: BIG_OHLCV.high[i], low: BIG_OHLCV.low[i], close: BIG_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Huge dataset (1,000,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      stochFast(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, 14, 3);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStoch({
+        period: 14,
+        signalPeriod: 3,
+        high: HUGE_OHLCV.high,
+        low: HUGE_OHLCV.low,
+        close: HUGE_OHLCV.close,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itStoch(HUGE_OHLCV.high, HUGE_OHLCV.low, HUGE_OHLCV.close, { kPeriod: 14, dPeriod: 3 });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsStoch(14, 3, 3);
+      for (let i = 0; i < HUGE_OHLCV.close.length; i++) {
+        ts.add({ high: HUGE_OHLCV.high[i], low: HUGE_OHLCV.low[i], close: HUGE_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new StochFastStream(14, 3);
+    taStream.init(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64);
+
+    const ftiStream = new FtiStochStream({
+      period: 14,
+      signalPeriod: 3,
+      high: [],
+      low: [],
+      close: [],
+    });
+    for (let i = 0; i < BIG_OHLCV.close.length; i++) {
+      ftiStream.nextValue(BIG_OHLCV.high[i], BIG_OHLCV.low[i], BIG_OHLCV.close[i]);
+    }
+
+    const tsStream = new TsStoch(14, 3, 3);
+    for (let i = 0; i < BIG_OHLCV.close.length; i++) {
+      tsStream.add({ high: BIG_OHLCV.high[i], low: BIG_OHLCV.low[i], close: BIG_OHLCV.close[i] });
+    }
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5, 99.5, 100.0);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStream.nextValue(100.5, 99.5, 100.0);
+    });
+
+    bench("trading-signals", () => {
+      tsStream.add({ high: 100.5, low: 99.5, close: 100.0 });
+    });
+  });
+});
+
+// ============================================================================
+// MFI (Money Flow Index) Benchmarks
+// ============================================================================
+
+describe("MFI (Money Flow Index)", () => {
+  describe("Small dataset (100 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      mfi(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, SMALL_OHLCV.volumeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiMfi({
+        period: 14,
+        high: SMALL_OHLCV.high,
+        low: SMALL_OHLCV.low,
+        close: SMALL_OHLCV.close,
+        volume: SMALL_OHLCV.volume,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itMfi(SMALL_OHLCV.high, SMALL_OHLCV.low, SMALL_OHLCV.close, SMALL_OHLCV.volume, { period: 14 });
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      mfi(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64, BIG_OHLCV.volumeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiMfi({
+        period: 14,
+        high: BIG_OHLCV.high,
+        low: BIG_OHLCV.low,
+        close: BIG_OHLCV.close,
+        volume: BIG_OHLCV.volume,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itMfi(BIG_OHLCV.high, BIG_OHLCV.low, BIG_OHLCV.close, BIG_OHLCV.volume, { period: 14 });
+    });
+  });
+
+  describe("Huge dataset (1,000,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      mfi(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, HUGE_OHLCV.volumeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiMfi({
+        period: 14,
+        high: HUGE_OHLCV.high,
+        low: HUGE_OHLCV.low,
+        close: HUGE_OHLCV.close,
+        volume: HUGE_OHLCV.volume,
+      });
+    });
+
+    bench("indicatorts", () => {
+      itMfi(HUGE_OHLCV.high, HUGE_OHLCV.low, HUGE_OHLCV.close, HUGE_OHLCV.volume, { period: 14 });
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new MfiStream(14);
+    taStream.init(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64, BIG_OHLCV.volumeF64);
+
+    const ftiStream = new FtiMfiStream({
+      period: 14,
+      high: BIG_OHLCV.high,
+      low: BIG_OHLCV.low,
+      close: BIG_OHLCV.close,
+      volume: BIG_OHLCV.volume,
+    });
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5, 99.5, 100.0, 500000);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStream.nextValue(100.5, 99.5, 100.0, 500000);
+    });
+  });
+});
+
+// ============================================================================
+// ADX (Average Directional Index) Benchmarks
+// ============================================================================
+
+describe("ADX (Average Directional Index)", () => {
+  describe("Small dataset (100 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      adx(SMALL_OHLCV.highF64, SMALL_OHLCV.lowF64, SMALL_OHLCV.closeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiAdx({
+        period: 14,
+        high: SMALL_OHLCV.high,
+        low: SMALL_OHLCV.low,
+        close: SMALL_OHLCV.close,
+      });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsAdx(14);
+      for (let i = 0; i < SMALL_OHLCV.close.length; i++) {
+        ts.add({ high: SMALL_OHLCV.high[i], low: SMALL_OHLCV.low[i], close: SMALL_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Big dataset (10,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      adx(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiAdx({
+        period: 14,
+        high: BIG_OHLCV.high,
+        low: BIG_OHLCV.low,
+        close: BIG_OHLCV.close,
+      });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsAdx(14);
+      for (let i = 0; i < BIG_OHLCV.close.length; i++) {
+        ts.add({ high: BIG_OHLCV.high[i], low: BIG_OHLCV.low[i], close: BIG_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Huge dataset (1,000,000 items)", () => {
+    bench("ta-tools (WASM)", () => {
+      adx(HUGE_OHLCV.highF64, HUGE_OHLCV.lowF64, HUGE_OHLCV.closeF64, 14);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiAdx({
+        period: 14,
+        high: HUGE_OHLCV.high,
+        low: HUGE_OHLCV.low,
+        close: HUGE_OHLCV.close,
+      });
+    });
+
+    bench("trading-signals", () => {
+      const ts = new TsAdx(14);
+      for (let i = 0; i < HUGE_OHLCV.close.length; i++) {
+        ts.add({ high: HUGE_OHLCV.high[i], low: HUGE_OHLCV.low[i], close: HUGE_OHLCV.close[i] });
+      }
+    });
+  });
+
+  describe("Streaming (single next() call)", () => {
+    const taStream = new AdxStream(14);
+    taStream.init(BIG_OHLCV.highF64, BIG_OHLCV.lowF64, BIG_OHLCV.closeF64);
+
+    const ftiStream = new FtiAdxStream({
+      period: 14,
+      high: BIG_OHLCV.high,
+      low: BIG_OHLCV.low,
+      close: BIG_OHLCV.close,
+    });
+
+    const tsStream = new TsAdx(14);
+    for (let i = 0; i < BIG_OHLCV.close.length; i++) {
+      tsStream.add({ high: BIG_OHLCV.high[i], low: BIG_OHLCV.low[i], close: BIG_OHLCV.close[i] });
+    }
+
+    bench("ta-tools (WASM)", () => {
+      taStream.next(100.5, 99.5, 100.0);
+    });
+
+    bench("fast-technical-indicators", () => {
+      ftiStream.nextValue(100.5, 99.5, 100.0);
+    });
+
+    bench("trading-signals", () => {
+      tsStream.add({ high: 100.5, low: 99.5, close: 100.0 });
     });
   });
 });
