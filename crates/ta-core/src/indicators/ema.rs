@@ -202,6 +202,7 @@ impl StreamingIndicator<f64, f64> for EmaStream {
         Ok(results)
     }
 
+    #[inline]
     fn next(&mut self, value: f64) -> Option<f64> {
         self.count += 1;
 

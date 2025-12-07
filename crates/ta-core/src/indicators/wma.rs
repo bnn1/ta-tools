@@ -61,11 +61,29 @@ impl Indicator<&[f64], Vec<f64>> for Wma {
             return Ok(result);
         }
 
-        for i in (self.period - 1)..len {
-            let mut weighted_sum = 0.0;
-            for (weight, j) in (1..=self.period).zip((i + 1 - self.period)..=i) {
-                weighted_sum += data[j] * weight as f64;
-            }
+        // Initialize first window with explicit weights
+        let mut weighted_sum = 0.0;
+        let mut simple_sum = 0.0;
+        for (i, &val) in data[..self.period].iter().enumerate() {
+            weighted_sum += val * (i + 1) as f64;
+            simple_sum += val;
+        }
+        result[self.period - 1] = weighted_sum / self.weight_sum;
+
+        // Sliding window: O(1) per iteration
+        // When we slide the window right by 1:
+        // - The new value gets weight = period
+        // - All other weights shift down by 1
+        // - The oldest value (weight 1) is removed
+        // new_weighted_sum = old_weighted_sum - simple_sum + new_value * period
+        for i in self.period..len {
+            let oldest = data[i - self.period];
+            let newest = data[i];
+
+            // Update sums incrementally
+            weighted_sum = weighted_sum - simple_sum + newest * self.period as f64;
+            simple_sum = simple_sum - oldest + newest;
+
             result[i] = weighted_sum / self.weight_sum;
         }
 
@@ -130,6 +148,7 @@ impl StreamingIndicator<f64, f64> for WmaStream {
         Ok(results)
     }
 
+    #[inline]
     fn next(&mut self, value: f64) -> Option<f64> {
         if self.count < self.period {
             // Still filling the buffer

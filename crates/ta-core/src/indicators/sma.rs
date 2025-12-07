@@ -131,6 +131,7 @@ impl StreamingIndicator<f64, f64> for SmaStream {
         Ok(results)
     }
 
+    #[inline]
     fn next(&mut self, value: f64) -> Option<f64> {
         // Subtract the value being replaced (if buffer is full)
         if self.count >= self.period {

@@ -120,12 +120,6 @@ impl BBands {
     pub const fn k(&self) -> f64 {
         self.k
     }
-
-    /// Calculate standard deviation for a window.
-    fn stddev(values: &[f64], mean: f64) -> f64 {
-        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
-        variance.sqrt()
-    }
 }
 
 impl Indicator<&[f64], Vec<BBandsOutput>> for BBands {
@@ -137,35 +131,52 @@ impl Indicator<&[f64], Vec<BBandsOutput>> for BBands {
             return Ok(result);
         }
 
-        // Calculate for each valid window
-        for i in (self.period - 1)..len {
-            let window = &data[(i + 1 - self.period)..=i];
-            let price = data[i];
+        let n = self.period as f64;
 
-            // Calculate SMA (middle band)
-            let middle = window.iter().sum::<f64>() / self.period as f64;
+        // Initialize running sums for first window
+        let mut sum: f64 = data[..self.period].iter().sum();
+        let mut sum_sq: f64 = data[..self.period].iter().map(|x| x * x).sum();
 
-            // Calculate standard deviation
-            let stddev = Self::stddev(window, middle);
+        // Calculate first BBands value
+        let price = data[self.period - 1];
+        let mean = sum / n;
+        let variance = (sum_sq / n) - (mean * mean);
+        let stddev = if variance > 0.0 { variance.sqrt() } else { 0.0 };
+        let upper = mean + self.k * stddev;
+        let lower = mean - self.k * stddev;
+        let band_width = upper - lower;
+        let percent_b = if band_width > 0.0 {
+            (price - lower) / band_width
+        } else {
+            0.5
+        };
+        let bandwidth = if mean > 0.0 { band_width / mean } else { 0.0 };
+        result[self.period - 1] = BBandsOutput::new(upper, mean, lower, percent_b, bandwidth);
 
-            // Calculate bands
-            let upper = middle + self.k * stddev;
-            let lower = middle - self.k * stddev;
+        // Sliding window: O(1) per iteration
+        for i in self.period..len {
+            let old_value = data[i - self.period];
+            let new_value = data[i];
 
-            // Calculate %B and bandwidth
+            // Update running sums
+            sum = sum - old_value + new_value;
+            sum_sq = sum_sq - (old_value * old_value) + (new_value * new_value);
+
+            // Calculate BBands from running sums
+            let price = new_value;
+            let mean = sum / n;
+            let variance = (sum_sq / n) - (mean * mean);
+            let stddev = if variance > 0.0 { variance.sqrt() } else { 0.0 };
+            let upper = mean + self.k * stddev;
+            let lower = mean - self.k * stddev;
             let band_width = upper - lower;
             let percent_b = if band_width > 0.0 {
                 (price - lower) / band_width
             } else {
-                0.5 // Price is at middle when bands are flat
+                0.5
             };
-            let bandwidth = if middle > 0.0 {
-                band_width / middle
-            } else {
-                0.0
-            };
-
-            result[i] = BBandsOutput::new(upper, middle, lower, percent_b, bandwidth);
+            let bandwidth = if mean > 0.0 { band_width / mean } else { 0.0 };
+            result[i] = BBandsOutput::new(upper, mean, lower, percent_b, bandwidth);
         }
 
         Ok(result)
@@ -231,6 +242,7 @@ impl BBandsStream {
     }
 
     /// Calculate output from current state.
+    #[inline]
     fn calculate_output(&self, price: f64) -> BBandsOutput {
         let n = self.period as f64;
         let mean = self.sum / n;
@@ -266,6 +278,7 @@ impl StreamingIndicator<f64, BBandsOutput> for BBandsStream {
         Ok(results)
     }
 
+    #[inline]
     fn next(&mut self, value: f64) -> Option<BBandsOutput> {
         // Remove old value from sums if buffer is full
         if self.count >= self.period {
