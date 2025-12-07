@@ -4,20 +4,6 @@
 
 ## 📋 Next Steps
 
-### Tier A Indicators ✅ COMPLETE
-
-All Tier A indicators have been implemented!
-
-### Tier B Indicators ✅ COMPLETE
-
-All Tier B indicators have been implemented!
-
-1. ✅ **MFI (Money Flow Index)** - Volume-weighted RSI
-2. ✅ **HMA (Hull Moving Average)** - Low-lag MA using WMA
-3. ✅ **Ichimoku Cloud** - Full suite (5 components)
-4. ✅ **ADX (Average Directional Index)** - Trend strength with +DI/-DI
-5. ✅ **Linear Regression Channels** - With Pearson's R, R², configurable std dev bands
-
 ### Infrastructure Improvements
 
 - [ ] GitHub Actions CI/CD pipeline
@@ -164,13 +150,6 @@ All Tier B indicators have been implemented!
 - Edge cases (empty data, insufficient data, invalid params)
 - Multi-input indicators (ATR, Stochastic with high/low/close)
 - NaN handling - returns NaN for insufficient data, never crashes
-
-### Phase 6: Optimization ✅
-
-**WASM Optimization:**
-- wasm-opt enabled with `--enable-simd --enable-bulk-memory --enable-nontrapping-float-to-int -O3`
-- WASM binary size: ~80KB (optimized)
-- Full LLVM optimization including ICF (Identical Code Folding)
 
 ---
 

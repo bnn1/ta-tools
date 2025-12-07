@@ -11,8 +11,8 @@ description = "High-performance technical analysis indicators for WASM"
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.wasm-pack.profile.release]
-# Full wasm-opt optimization with SIMD, bulk memory and nontrapping float-to-int support
-wasm-opt = ["--enable-simd", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "-O3"]
+# Size-optimized wasm-opt with SIMD, bulk memory and nontrapping float-to-int support
+wasm-opt = ["--enable-simd", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "-Oz"]
 
 [dependencies]
 wasm-bindgen = "0.2"

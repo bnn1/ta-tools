@@ -1313,14 +1313,6 @@ describe("Ichimoku Cloud", () => {
         displacement: 26,
       });
     });
-
-    bench("indicatorts", () => {
-      itIchimoku(HUGE_OHLCV.high, HUGE_OHLCV.low, HUGE_OHLCV.close, {
-        short: 9,
-        medium: 26,
-        long: 52,
-      });
-    });
   });
 
   describe("Streaming (single next() call)", () => {
