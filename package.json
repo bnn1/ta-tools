@@ -19,9 +19,19 @@
     "build:wasm": "wasm-pack build crates/ta-core --target nodejs --out-dir ../../pkg",
     "build:ts": "tsc",
     "build": "npm run build:wasm && npm run build:ts",
-    "test": "vitest",
-    "bench": "vitest bench"
+    "test": "vitest run",
+    "bench": "vitest bench",
+    "prepublishOnly": "npm run build && npm test"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bnn1/ta-tools.git"
+  },
+  "homepage": "https://github.com/bnn1/ta-tools#readme",
+  "bugs": {
+    "url": "https://github.com/bnn1/ta-tools/issues"
+  },
+  "author": "bnn1",
   "engines": {
     "node": ">=22.0.0"
   },
