@@ -11,21 +11,49 @@
 - [ ] Documentation site (TypeDoc or similar)
 - [ ] Add Rust-level benchmarks with Criterion
 
-### Optimizations
-
-- [ ] Add `#[inline]` hints for hot paths
-- [ ] Consider use shared memory (SharedArrayBuffer) to avoid copies
-
 ### API Enhancements
 
 - [ ] Add `update()` method to modify last value (for live candle updates)
 - [ ] Support custom smoothing multipliers for all MAs
 - [ ] Provide raw indicator state for serialization/persistence
-- [ ] Add OHLCV-based indicator variants
+- [x] ~~Add OHLCV-based indicator variants~~ → Implemented via unified `Candle` type
 
 ---
 
 ## ✅ Completed Work
+
+### Phase 6: TypeScript Convenience API (Vision E) ✅
+
+**New wrapper in `js/index.ts` with developer-first ergonomics:**
+
+**Types:**
+- `Candle` interface with `open`, `high`, `low`, `close`, `volume?`, `time?`
+- Typed outputs: `MacdOutput`, `BBandsOutput`, `StochOutput`, `AdxOutput`, `IchimokuOutput`, `LinRegOutput`, `PivotOutput`
+
+**Utilities:**
+- `toFloat64Array()` - auto-converts `number[]` → `Float64Array`
+- `extractOHLCV()` - converts `Candle[]` → separate arrays
+
+**Key Features:**
+- All indicators accept `number[]` (auto-converted) or `Float64Array`
+- OHLCV indicators accept `Candle[]` directly (eliminates 4-6 positional arrays)
+- `.stream()` factory methods on all indicator functions
+- `analyze()` helper for multi-indicator calculations
+- 100% backwards compatible with legacy positional APIs
+
+**Example:**
+```typescript
+// Before: atr(highsF64, lowsF64, closesF64, 14)
+// After:
+const candles: Candle[] = data.map(d => ({ open: d.o, high: d.h, low: d.l, close: d.c }));
+const atrResult = atr(candles, 14);
+
+// Streaming via factory
+const rsiStream = rsi.stream(14);
+rsiStream.next(newPrice);
+```
+
+---
 
 ### Phase 1: Project Foundation ✅
 
