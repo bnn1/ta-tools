@@ -92,7 +92,10 @@ impl LinReg {
                 "num_std_dev must be non-negative".to_string(),
             ));
         }
-        Ok(Self { period, num_std_dev })
+        Ok(Self {
+            period,
+            num_std_dev,
+        })
     }
 
     /// Creates a new Linear Regression calculator with default parameters (period, 2.0 std dev).
@@ -412,7 +415,9 @@ mod tests {
 
     #[test]
     fn test_linreg_streaming_matches_batch() {
-        let data: Vec<f64> = (0..20).map(|i| 100.0 + i as f64 * 0.5 + (i % 3) as f64 * 0.2).collect();
+        let data: Vec<f64> = (0..20)
+            .map(|i| 100.0 + i as f64 * 0.5 + (i % 3) as f64 * 0.2)
+            .collect();
 
         let batch = LinReg::new(5, 2.0).unwrap();
         let batch_result = batch.calculate(&data).unwrap();
@@ -440,7 +445,10 @@ mod tests {
 
         for r in result.iter().skip(4) {
             assert!(r.r >= -1.0 && r.r <= 1.0, "R should be between -1 and 1");
-            assert!(r.r_squared >= 0.0 && r.r_squared <= 1.0, "R² should be between 0 and 1");
+            assert!(
+                r.r_squared >= 0.0 && r.r_squared <= 1.0,
+                "R² should be between 0 and 1"
+            );
         }
     }
 

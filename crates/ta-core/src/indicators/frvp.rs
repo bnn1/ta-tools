@@ -551,10 +551,10 @@ mod tests {
 
         // Create candles with clear volume distribution
         let candles = vec![
-            make_candle(102.0, 100.0, 101.0, 100.0),  // Low volume at bottom
+            make_candle(102.0, 100.0, 101.0, 100.0), // Low volume at bottom
             make_candle(105.0, 103.0, 104.0, 1000.0), // High volume in middle
             make_candle(106.0, 104.0, 105.0, 1000.0), // High volume in middle
-            make_candle(110.0, 108.0, 109.0, 100.0),  // Low volume at top
+            make_candle(110.0, 108.0, 109.0, 100.0), // Low volume at top
         ];
 
         let result = frvp.calculate(&candles).unwrap();

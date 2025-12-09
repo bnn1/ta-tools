@@ -5,14 +5,14 @@
 use wasm_bindgen::prelude::*;
 
 use crate::indicators::{
-    Adx, AdxBar, AdxOutput, AdxStream, Atr, AtrBar, AtrStream, BBands, BBandsOutput, BBandsStream,
-    Cvd, CvdBar, CvdOhlcv, CvdOhlcvStream, CvdStream, Ema, EmaStream, Frvp, FrvpOutput, FrvpStream,
-    Hma, HmaStream, Ichimoku, IchimokuBar, IchimokuOutput, IchimokuStream, LinReg, LinRegOutput,
-    LinRegStream, Macd, MacdOutput, MacdStream, Mfi, MfiBar, MfiStream, PivotPoints,
-    PivotPointsOutput, PivotPointsVariant, Rsi, RsiStream, Sma, SmaStream, Stoch, StochBar,
-    StochOutput, StochStream, StochType, StochRsi, StochRsiOutput, StochRsiStream, Wma, WmaStream,
-    SessionVwap, SessionVwapStream, RollingVwap, RollingVwapStream, AnchoredVwap,
-    AnchoredVwapStream, VolumeProfileRow,
+    Adx, AdxBar, AdxOutput, AdxStream, AnchoredVwap, AnchoredVwapStream, Atr, AtrBar, AtrStream,
+    BBands, BBandsOutput, BBandsStream, Cvd, CvdBar, CvdOhlcv, CvdOhlcvStream, CvdStream, Ema,
+    EmaStream, Frvp, FrvpOutput, FrvpStream, Hma, HmaStream, Ichimoku, IchimokuBar, IchimokuOutput,
+    IchimokuStream, LinReg, LinRegOutput, LinRegStream, Macd, MacdOutput, MacdStream, Mfi, MfiBar,
+    MfiStream, PivotPoints, PivotPointsOutput, PivotPointsVariant, RollingVwap, RollingVwapStream,
+    Rsi, RsiStream, SessionVwap, SessionVwapStream, Sma, SmaStream, Stoch, StochBar, StochOutput,
+    StochRsi, StochRsiOutput, StochRsiStream, StochStream, StochType, VolumeProfileRow, Wma,
+    WmaStream,
 };
 use crate::traits::{Indicator, StreamingIndicator};
 use crate::types::OHLCV;
@@ -125,8 +125,8 @@ pub fn macd_batch(
     slow_period: usize,
     signal_period: usize,
 ) -> Result<JsValue, JsError> {
-    let indicator =
-        Macd::new(fast_period, slow_period, signal_period).map_err(|e| JsError::new(&e.to_string()))?;
+    let indicator = Macd::new(fast_period, slow_period, signal_period)
+        .map_err(|e| JsError::new(&e.to_string()))?;
     let results = indicator
         .calculate(data)
         .map_err(|e| JsError::new(&e.to_string()))?;
@@ -589,8 +589,7 @@ impl WasmBBandsStream {
     /// Create a new streaming Bollinger Bands calculator.
     #[wasm_bindgen(constructor)]
     pub fn new(period: usize, k: f64) -> Result<WasmBBandsStream, JsError> {
-        let inner =
-            BBandsStream::new(period, k).map_err(|e| JsError::new(&e.to_string()))?;
+        let inner = BBandsStream::new(period, k).map_err(|e| JsError::new(&e.to_string()))?;
         Ok(Self { inner })
     }
 
@@ -791,8 +790,8 @@ pub fn stoch_fast_batch(
     k_period: usize,
     d_period: usize,
 ) -> Result<JsValue, JsError> {
-    let indicator =
-        Stoch::new(k_period, d_period, StochType::Fast).map_err(|e| JsError::new(&e.to_string()))?;
+    let indicator = Stoch::new(k_period, d_period, StochType::Fast)
+        .map_err(|e| JsError::new(&e.to_string()))?;
     let results = indicator
         .calculate(&(&highs, &lows, &closes))
         .map_err(|e| JsError::new(&e.to_string()))?;
@@ -924,7 +923,9 @@ impl WasmStochFastStream {
     /// Process next bar. Takes high, low, close.
     /// Returns Stochastic output or undefined if not ready.
     pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<WasmStochOutput> {
-        self.inner.next((high, low, close)).map(WasmStochOutput::from)
+        self.inner
+            .next((high, low, close))
+            .map(WasmStochOutput::from)
     }
 
     /// Reset the calculator to initial state.
@@ -1022,7 +1023,9 @@ impl WasmStochSlowStream {
     /// Process next bar. Takes high, low, close.
     /// Returns Stochastic output or undefined if not ready.
     pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<WasmStochOutput> {
-        self.inner.next((high, low, close)).map(WasmStochOutput::from)
+        self.inner
+            .next((high, low, close))
+            .map(WasmStochOutput::from)
     }
 
     /// Reset the calculator to initial state.
@@ -1233,7 +1236,8 @@ impl WasmStochRsiStream {
 #[wasm_bindgen(js_name = "cvd")]
 pub fn cvd_batch(deltas: &[f64]) -> Result<Vec<f64>, JsError> {
     let cvd = Cvd::new();
-    cvd.calculate(deltas).map_err(|e| JsError::new(&e.to_string()))
+    cvd.calculate(deltas)
+        .map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// Calculate CVD from OHLCV data using volume approximation.
@@ -1267,7 +1271,8 @@ pub fn cvd_ohlcv_batch(
         .collect();
 
     let cvd = CvdOhlcv::new();
-    cvd.calculate(&bars).map_err(|e| JsError::new(&e.to_string()))
+    cvd.calculate(&bars)
+        .map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// Streaming CVD calculator for pre-computed delta values.
@@ -1290,7 +1295,9 @@ impl WasmCvdStream {
     /// Returns array of CVD values.
     #[wasm_bindgen(js_name = "init")]
     pub fn init_history(&mut self, deltas: &[f64]) -> Result<Vec<f64>, JsError> {
-        self.inner.init(deltas).map_err(|e| JsError::new(&e.to_string()))
+        self.inner
+            .init(deltas)
+            .map_err(|e| JsError::new(&e.to_string()))
     }
 
     /// Process next delta value. Returns CVD value or undefined if NaN input.
@@ -1357,7 +1364,9 @@ impl WasmCvdOhlcvStream {
             .map(|(((&h, &l), &c), &v)| (h, l, c, v))
             .collect();
 
-        self.inner.init(&bars).map_err(|e| JsError::new(&e.to_string()))
+        self.inner
+            .init(&bars)
+            .map_err(|e| JsError::new(&e.to_string()))
     }
 
     /// Process next bar. Takes high, low, close, volume.
@@ -1403,9 +1412,7 @@ fn arrays_to_ohlcv(
         || closes.len() != len
         || volumes.len() != len
     {
-        return Err(JsError::new(
-            "All OHLCV arrays must have the same length",
-        ));
+        return Err(JsError::new("All OHLCV arrays must have the same length"));
     }
 
     Ok(timestamps
@@ -2164,7 +2171,10 @@ impl WasmFrvpStream {
     /// @param numBins - Number of price bins (rows) in histogram
     /// @param valueAreaPercent - Optional percentage of volume for value area (0.0-1.0, default 0.70)
     #[wasm_bindgen(constructor)]
-    pub fn new(num_bins: usize, value_area_percent: Option<f64>) -> Result<WasmFrvpStream, JsError> {
+    pub fn new(
+        num_bins: usize,
+        value_area_percent: Option<f64>,
+    ) -> Result<WasmFrvpStream, JsError> {
         let inner = match value_area_percent {
             Some(pct) => FrvpStream::with_value_area(num_bins, pct),
             None => FrvpStream::new(num_bins),
@@ -2220,13 +2230,7 @@ impl WasmFrvpStream {
     /// @param close - Close price
     /// @param volume - Volume
     /// @returns Updated FRVP output or undefined if not ready
-    pub fn next(
-        &mut self,
-        high: f64,
-        low: f64,
-        close: f64,
-        volume: f64,
-    ) -> Option<WasmFrvpOutput> {
+    pub fn next(&mut self, high: f64, low: f64, close: f64, volume: f64) -> Option<WasmFrvpOutput> {
         let candle = OHLCV::new(0, low, high, low, close, volume);
         self.inner.next(candle).map(WasmFrvpOutput::from)
     }
@@ -2247,7 +2251,6 @@ impl WasmFrvpStream {
     pub fn num_bins(&self) -> usize {
         self.inner.num_bins()
     }
-
 
     /// Get the number of candles in the buffer.
     #[wasm_bindgen(getter, js_name = "candleCount")]
@@ -2638,7 +2641,9 @@ impl WasmIchimokuStream {
 
     /// Process next bar.
     pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<WasmIchimokuOutput> {
-        self.inner.next((high, low, close)).map(WasmIchimokuOutput::from)
+        self.inner
+            .next((high, low, close))
+            .map(WasmIchimokuOutput::from)
     }
 
     /// Reset the calculator.
@@ -2928,8 +2933,8 @@ pub fn linreg_batch(
     period: usize,
     num_std_dev: Option<f64>,
 ) -> Result<JsValue, JsError> {
-    let indicator =
-        LinReg::new(period, num_std_dev.unwrap_or(2.0)).map_err(|e| JsError::new(&e.to_string()))?;
+    let indicator = LinReg::new(period, num_std_dev.unwrap_or(2.0))
+        .map_err(|e| JsError::new(&e.to_string()))?;
     let results = indicator
         .calculate(data)
         .map_err(|e| JsError::new(&e.to_string()))?;

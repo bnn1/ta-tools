@@ -95,7 +95,11 @@ impl Macd {
     ///
     /// # Errors
     /// Returns `InvalidParameter` if any period is 0 or if fast >= slow.
-    pub fn new(fast_period: usize, slow_period: usize, signal_period: usize) -> IndicatorResult<Self> {
+    pub fn new(
+        fast_period: usize,
+        slow_period: usize,
+        signal_period: usize,
+    ) -> IndicatorResult<Self> {
         Self::with_signal_type(fast_period, slow_period, signal_period, SignalType::Ema)
     }
 
@@ -198,7 +202,11 @@ impl Indicator<&[f64], Vec<MacdOutput>> for Macd {
             let macd_idx = i - valid_macd_start;
             let macd = macd_line[i];
             let signal = signal_values[macd_idx];
-            let histogram = if signal.is_nan() { f64::NAN } else { macd - signal };
+            let histogram = if signal.is_nan() {
+                f64::NAN
+            } else {
+                macd - signal
+            };
             result[i] = MacdOutput::new(macd, signal, histogram);
         }
 
@@ -221,7 +229,11 @@ pub struct MacdStream {
 
 impl MacdStream {
     /// Creates a new streaming MACD calculator with EMA signal line.
-    pub fn new(fast_period: usize, slow_period: usize, signal_period: usize) -> IndicatorResult<Self> {
+    pub fn new(
+        fast_period: usize,
+        slow_period: usize,
+        signal_period: usize,
+    ) -> IndicatorResult<Self> {
         Self::with_signal_type(fast_period, slow_period, signal_period, SignalType::Ema)
     }
 
@@ -419,17 +431,26 @@ mod tests {
 
         for (i, (b, s)) in batch_result.iter().zip(stream_result.iter()).enumerate() {
             if b.macd.is_nan() {
-                assert!(s.macd.is_nan(), "index {i}: batch macd is NaN but stream is not");
+                assert!(
+                    s.macd.is_nan(),
+                    "index {i}: batch macd is NaN but stream is not"
+                );
             } else {
                 assert_approx_eq(b.macd, s.macd);
             }
             if b.signal.is_nan() {
-                assert!(s.signal.is_nan(), "index {i}: batch signal is NaN but stream is not");
+                assert!(
+                    s.signal.is_nan(),
+                    "index {i}: batch signal is NaN but stream is not"
+                );
             } else {
                 assert_approx_eq(b.signal, s.signal);
             }
             if b.histogram.is_nan() {
-                assert!(s.histogram.is_nan(), "index {i}: batch histogram is NaN but stream is not");
+                assert!(
+                    s.histogram.is_nan(),
+                    "index {i}: batch histogram is NaN but stream is not"
+                );
             } else {
                 assert_approx_eq(b.histogram, s.histogram);
             }
@@ -443,8 +464,8 @@ mod tests {
 
         // Use more varied data to ensure EMA and SMA diverge
         let data: Vec<f64> = vec![
-            10.0, 12.0, 11.0, 13.0, 15.0, 14.0, 16.0, 18.0, 17.0, 20.0,
-            19.0, 22.0, 21.0, 24.0, 23.0, 26.0, 25.0, 28.0, 27.0, 30.0,
+            10.0, 12.0, 11.0, 13.0, 15.0, 14.0, 16.0, 18.0, 17.0, 20.0, 19.0, 22.0, 21.0, 24.0,
+            23.0, 26.0, 25.0, 28.0, 27.0, 30.0,
         ];
 
         let result_ema = macd_ema.calculate(&data).unwrap();

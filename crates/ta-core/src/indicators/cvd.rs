@@ -216,7 +216,11 @@ impl StreamingIndicator<f64, f64> for CvdStream {
 
     fn next(&mut self, delta: f64) -> Option<f64> {
         if delta.is_nan() {
-            return if self.ready { Some(self.cumulative) } else { None };
+            return if self.ready {
+                Some(self.cumulative)
+            } else {
+                None
+            };
         }
 
         self.cumulative += delta;

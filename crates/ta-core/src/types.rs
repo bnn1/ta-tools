@@ -22,7 +22,14 @@ pub struct OHLCV {
 impl OHLCV {
     /// Creates a new OHLCV candle.
     #[must_use]
-    pub const fn new(timestamp: i64, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Self {
+    pub const fn new(
+        timestamp: i64,
+        open: f64,
+        high: f64,
+        low: f64,
+        close: f64,
+        volume: f64,
+    ) -> Self {
         Self {
             timestamp,
             open,
@@ -64,7 +71,10 @@ impl std::fmt::Display for IndicatorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InsufficientData { required, provided } => {
-                write!(f, "Insufficient data: required {required}, provided {provided}")
+                write!(
+                    f,
+                    "Insufficient data: required {required}, provided {provided}"
+                )
             }
             Self::InvalidParameter(msg) => write!(f, "Invalid parameter: {msg}"),
             Self::NotInitialized => write!(f, "Indicator not initialized"),

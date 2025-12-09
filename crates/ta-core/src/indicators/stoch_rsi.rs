@@ -475,11 +475,11 @@ mod tests {
     fn sample_prices() -> Vec<f64> {
         // Extended sample data (50 prices) to meet minimum data requirements
         vec![
-            44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08,
-            45.89, 46.03, 45.61, 46.28, 46.28, 46.00, 46.03, 46.41, 46.22, 45.64,
-            46.21, 46.25, 45.71, 46.45, 45.78, 46.23, 46.69, 47.23, 46.98, 47.29,
-            47.71, 47.57, 47.85, 47.45, 47.89, 48.23, 48.05, 47.79, 48.15, 48.45,
-            48.32, 48.67, 48.89, 49.12, 48.95, 49.35, 49.67, 49.45, 49.78, 50.01,
+            44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89, 46.03,
+            45.61, 46.28, 46.28, 46.00, 46.03, 46.41, 46.22, 45.64, 46.21, 46.25, 45.71, 46.45,
+            45.78, 46.23, 46.69, 47.23, 46.98, 47.29, 47.71, 47.57, 47.85, 47.45, 47.89, 48.23,
+            48.05, 47.79, 48.15, 48.45, 48.32, 48.67, 48.89, 49.12, 48.95, 49.35, 49.67, 49.45,
+            49.78, 50.01,
         ]
     }
 
@@ -505,22 +505,42 @@ mod tests {
         // - Then stoch needs 14 more RSI values, so first stoch_raw at index 27
         // - Then k_smooth needs 3, so first K at index 29
         // - Then d_period needs 3, so first D at index 31
-        
+
         // First 29 values should have NaN K
         for (i, result) in results.iter().enumerate().take(29) {
-            assert!(result.k.is_nan(), "Expected NaN K at index {}, got {}", i, result.k);
+            assert!(
+                result.k.is_nan(),
+                "Expected NaN K at index {}, got {}",
+                i,
+                result.k
+            );
         }
 
         // Index 29-30 should have valid K but NaN D
         for i in 29..31.min(results.len()) {
             assert!(!results[i].k.is_nan(), "Expected valid K at index {}", i);
-            assert!(results[i].d.is_nan(), "Expected NaN D at index {}, got {}", i, results[i].d);
+            assert!(
+                results[i].d.is_nan(),
+                "Expected NaN D at index {}, got {}",
+                i,
+                results[i].d
+            );
         }
 
         // From index 31 onward, both K and D should be valid and in range 0-100
         for (i, result) in results.iter().enumerate().skip(31) {
-            assert!(result.k >= 0.0 && result.k <= 100.0, "K out of range at {}: {}", i, result.k);
-            assert!(result.d >= 0.0 && result.d <= 100.0, "D out of range at {}: {}", i, result.d);
+            assert!(
+                result.k >= 0.0 && result.k <= 100.0,
+                "K out of range at {}: {}",
+                i,
+                result.k
+            );
+            assert!(
+                result.d >= 0.0 && result.d <= 100.0,
+                "D out of range at {}: {}",
+                i,
+                result.d
+            );
         }
     }
 
@@ -556,7 +576,12 @@ mod tests {
         // Compare
         for (i, (b, s)) in batch_results.iter().zip(stream_results.iter()).enumerate() {
             if b.k.is_nan() {
-                assert!(s.k.is_nan(), "Mismatch at index {}: batch k=NaN, stream k={}", i, s.k);
+                assert!(
+                    s.k.is_nan(),
+                    "Mismatch at index {}: batch k=NaN, stream k={}",
+                    i,
+                    s.k
+                );
             } else {
                 assert!(
                     (b.k - s.k).abs() < 1e-10,
@@ -567,7 +592,12 @@ mod tests {
                 );
             }
             if b.d.is_nan() {
-                assert!(s.d.is_nan(), "Mismatch at index {}: batch d=NaN, stream d={}", i, s.d);
+                assert!(
+                    s.d.is_nan(),
+                    "Mismatch at index {}: batch d=NaN, stream d={}",
+                    i,
+                    s.d
+                );
             } else {
                 assert!(
                     (b.d - s.d).abs() < 1e-10,
@@ -584,7 +614,7 @@ mod tests {
     fn test_stoch_rsi_insufficient_data_returns_nan() {
         // Should handle gracefully - return NaN, not error
         let indicator = StochRsi::new(14, 14, 3, 3).unwrap();
-        
+
         // Test with very short data
         let prices = vec![1.0; 10];
         let result = indicator.calculate(&prices).unwrap();
@@ -607,7 +637,7 @@ mod tests {
             assert!(r.k.is_nan());
             assert!(r.d.is_nan());
         }
-        
+
         // Stream should not be "ready" yet
         assert!(!stream.is_ready());
     }

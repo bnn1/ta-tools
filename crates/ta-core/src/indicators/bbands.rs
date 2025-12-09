@@ -375,8 +375,11 @@ mod tests {
 
         // %B should be between 0 and 1 when price is within bands
         for i in 4..result.len() {
-            assert!(result[i].percent_b >= 0.0 && result[i].percent_b <= 1.0,
-                    "percent_b at {i} should be between 0 and 1: {}", result[i].percent_b);
+            assert!(
+                result[i].percent_b >= 0.0 && result[i].percent_b <= 1.0,
+                "percent_b at {i} should be between 0 and 1: {}",
+                result[i].percent_b
+            );
         }
     }
 

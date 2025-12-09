@@ -639,7 +639,11 @@ impl StreamingIndicator<OHLCV, f64> for AnchoredVwapStream {
 mod tests {
     use super::*;
 
-    fn make_candles(prices_and_volumes: &[(f64, f64, f64, f64, f64)], start_ts: i64, interval_ms: i64) -> Vec<OHLCV> {
+    fn make_candles(
+        prices_and_volumes: &[(f64, f64, f64, f64, f64)],
+        start_ts: i64,
+        interval_ms: i64,
+    ) -> Vec<OHLCV> {
         prices_and_volumes
             .iter()
             .enumerate()
@@ -679,7 +683,11 @@ mod tests {
         // Bar 2: VWAP = (102 * 1000 + 103.67 * 1500 + 105.67 * 2000) / 4500 = 468840 / 4500 ≈ 104.19
 
         assert!(approx_eq(result[0], 102.0, 0.01));
-        assert!(approx_eq(result[1], (102.0 * 1000.0 + ((106.0 + 101.0 + 104.0) / 3.0) * 1500.0) / 2500.0, 0.01));
+        assert!(approx_eq(
+            result[1],
+            (102.0 * 1000.0 + ((106.0 + 101.0 + 104.0) / 3.0) * 1500.0) / 2500.0,
+            0.01
+        ));
     }
 
     #[test]
@@ -687,10 +695,10 @@ mod tests {
         // Day 1: starts at timestamp 0 (day 0)
         // Day 2: starts at timestamp 86400000 (day 1)
         let candles = vec![
-            OHLCV::new(0, 100.0, 105.0, 99.0, 102.0, 1000.0),           // Day 0
-            OHLCV::new(60000, 102.0, 106.0, 101.0, 104.0, 1500.0),      // Day 0
-            OHLCV::new(86400000, 50.0, 55.0, 49.0, 52.0, 2000.0),       // Day 1 - should reset
-            OHLCV::new(86460000, 52.0, 56.0, 51.0, 54.0, 1000.0),       // Day 1
+            OHLCV::new(0, 100.0, 105.0, 99.0, 102.0, 1000.0), // Day 0
+            OHLCV::new(60000, 102.0, 106.0, 101.0, 104.0, 1500.0), // Day 0
+            OHLCV::new(86400000, 50.0, 55.0, 49.0, 52.0, 2000.0), // Day 1 - should reset
+            OHLCV::new(86460000, 52.0, 56.0, 51.0, 54.0, 1000.0), // Day 1
         ];
 
         let vwap = SessionVwap::new();
@@ -895,9 +903,7 @@ mod tests {
 
     #[test]
     fn test_zero_volume() {
-        let candles = vec![
-            OHLCV::new(0, 100.0, 105.0, 99.0, 102.0, 0.0),
-        ];
+        let candles = vec![OHLCV::new(0, 100.0, 105.0, 99.0, 102.0, 0.0)];
 
         let vwap = SessionVwap::new();
         let result = vwap.calculate(&candles).unwrap();

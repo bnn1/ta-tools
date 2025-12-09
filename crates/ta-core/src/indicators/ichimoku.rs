@@ -266,7 +266,12 @@ impl IchimokuStream {
     }
 
     /// Update a monotonic deque for max values.
-    fn update_max_deque(deque: &mut VecDeque<(usize, f64)>, index: usize, value: f64, period: usize) {
+    fn update_max_deque(
+        deque: &mut VecDeque<(usize, f64)>,
+        index: usize,
+        value: f64,
+        period: usize,
+    ) {
         // Remove elements older than the window
         while let Some(&(idx, _)) = deque.front() {
             if index >= period && idx <= index - period {
@@ -287,7 +292,12 @@ impl IchimokuStream {
     }
 
     /// Update a monotonic deque for min values.
-    fn update_min_deque(deque: &mut VecDeque<(usize, f64)>, index: usize, value: f64, period: usize) {
+    fn update_min_deque(
+        deque: &mut VecDeque<(usize, f64)>,
+        index: usize,
+        value: f64,
+        period: usize,
+    ) {
         // Remove elements older than the window
         while let Some(&(idx, _)) = deque.front() {
             if index >= period && idx <= index - period {
@@ -368,7 +378,8 @@ impl StreamingIndicator<IchimokuBar, IchimokuOutput> for IchimokuStream {
 
         // Senkou Span B
         if self.count >= self.senkou_b_period {
-            output.senkou_span_b = Self::get_midpoint(&self.senkou_max_deque, &self.senkou_min_deque);
+            output.senkou_span_b =
+                Self::get_midpoint(&self.senkou_max_deque, &self.senkou_min_deque);
         }
 
         // Chikou Span (just the close)
@@ -489,16 +500,20 @@ mod tests {
         let batch_result = batch.calculate(&(&highs, &lows, &closes)).unwrap();
 
         let mut stream = IchimokuStream::new(3, 5, 7).unwrap();
-        let bars: Vec<IchimokuBar> = (0..20)
-            .map(|i| (highs[i], lows[i], closes[i]))
-            .collect();
+        let bars: Vec<IchimokuBar> = (0..20).map(|i| (highs[i], lows[i], closes[i])).collect();
         let stream_result = stream.init(&bars).unwrap();
 
         for i in 0..batch_result.len() {
             assert_approx_eq(stream_result[i].tenkan_sen, batch_result[i].tenkan_sen);
             assert_approx_eq(stream_result[i].kijun_sen, batch_result[i].kijun_sen);
-            assert_approx_eq(stream_result[i].senkou_span_a, batch_result[i].senkou_span_a);
-            assert_approx_eq(stream_result[i].senkou_span_b, batch_result[i].senkou_span_b);
+            assert_approx_eq(
+                stream_result[i].senkou_span_a,
+                batch_result[i].senkou_span_a,
+            );
+            assert_approx_eq(
+                stream_result[i].senkou_span_b,
+                batch_result[i].senkou_span_b,
+            );
             assert_approx_eq(stream_result[i].chikou_span, batch_result[i].chikou_span);
         }
     }
@@ -527,9 +542,7 @@ mod tests {
         let closes = [9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5];
 
         let mut stream = IchimokuStream::new(3, 5, 7).unwrap();
-        let bars: Vec<IchimokuBar> = (0..8)
-            .map(|i| (highs[i], lows[i], closes[i]))
-            .collect();
+        let bars: Vec<IchimokuBar> = (0..8).map(|i| (highs[i], lows[i], closes[i])).collect();
         stream.init(&bars).unwrap();
 
         assert!(stream.is_ready());

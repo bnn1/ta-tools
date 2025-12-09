@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_standard_pivot_points() {
         let pp = PivotPoints::standard();
-        
+
         // Test with known values
         // High = 110, Low = 100, Close = 105
         let result = pp.calculate_single(110.0, 100.0, 105.0);
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn test_fibonacci_pivot_points() {
         let pp = PivotPoints::fibonacci();
-        
+
         // High = 110, Low = 100, Close = 105
         let result = pp.calculate_single(110.0, 100.0, 105.0);
 
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn test_woodie_pivot_points() {
         let pp = PivotPoints::woodie();
-        
+
         // High = 110, Low = 100, Close = 105
         let result = pp.calculate_single(110.0, 100.0, 105.0);
 
@@ -353,7 +353,7 @@ mod tests {
     fn test_woodie_different_from_standard() {
         let standard = PivotPoints::standard();
         let woodie = PivotPoints::woodie();
-        
+
         // When close is not at the midpoint, Woodie will differ
         // High = 110, Low = 100, Close = 108 (bullish close)
         let std_result = standard.calculate_single(110.0, 100.0, 108.0);
@@ -372,12 +372,13 @@ mod tests {
     #[test]
     fn test_batch_calculation() {
         let pp = PivotPoints::standard();
-        
+
         let highs = [110.0, 120.0, 115.0];
         let lows = [100.0, 105.0, 108.0];
         let closes = [105.0, 118.0, 110.0];
 
-        let result: Vec<PivotPointsOutput> = pp.calculate((&highs[..], &lows[..], &closes[..])).unwrap();
+        let result: Vec<PivotPointsOutput> =
+            pp.calculate((&highs[..], &lows[..], &closes[..])).unwrap();
 
         assert_eq!(result.len(), 3);
 
@@ -395,7 +396,7 @@ mod tests {
     fn test_single_input_trait() {
         let pp = PivotPoints::standard();
         let input: PivotInput = (110.0, 100.0, 105.0);
-        
+
         let result: PivotPointsOutput = pp.calculate(&input).unwrap();
         assert!(approx_eq(result.pivot, 105.0, 0.001));
     }
@@ -403,7 +404,7 @@ mod tests {
     #[test]
     fn test_nan_handling() {
         let pp = PivotPoints::standard();
-        
+
         let result = pp.calculate_single(f64::NAN, 100.0, 105.0);
         assert!(result.pivot.is_nan());
         assert!(!result.is_valid());
@@ -418,7 +419,7 @@ mod tests {
     #[test]
     fn test_mismatched_lengths() {
         let pp = PivotPoints::standard();
-        
+
         let highs = [110.0, 120.0];
         let lows = [100.0]; // Wrong length
         let closes = [105.0, 118.0];
@@ -430,7 +431,7 @@ mod tests {
     #[test]
     fn test_is_valid() {
         let pp = PivotPoints::standard();
-        
+
         let valid = pp.calculate_single(110.0, 100.0, 105.0);
         assert!(valid.is_valid());
 
@@ -440,8 +441,14 @@ mod tests {
 
     #[test]
     fn test_constructors() {
-        assert_eq!(PivotPoints::standard().variant(), PivotPointsVariant::Standard);
-        assert_eq!(PivotPoints::fibonacci().variant(), PivotPointsVariant::Fibonacci);
+        assert_eq!(
+            PivotPoints::standard().variant(),
+            PivotPointsVariant::Standard
+        );
+        assert_eq!(
+            PivotPoints::fibonacci().variant(),
+            PivotPointsVariant::Fibonacci
+        );
         assert_eq!(PivotPoints::woodie().variant(), PivotPointsVariant::Woodie);
     }
 

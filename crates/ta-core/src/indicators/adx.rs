@@ -218,7 +218,11 @@ impl Indicator<&AdxInput<'_>, Vec<AdxOutput>> for Adx {
 
 /// Calculate +DI, -DI, and DX from smoothed values.
 #[inline]
-fn calculate_di_and_dx(smoothed_plus_dm: f64, smoothed_minus_dm: f64, smoothed_tr: f64) -> (f64, f64, f64) {
+fn calculate_di_and_dx(
+    smoothed_plus_dm: f64,
+    smoothed_minus_dm: f64,
+    smoothed_tr: f64,
+) -> (f64, f64, f64) {
     if smoothed_tr == 0.0 {
         return (0.0, 0.0, 0.0);
     }
@@ -306,8 +310,11 @@ impl AdxStream {
     #[must_use]
     pub fn current(&self) -> Option<AdxOutput> {
         if self.count > self.period {
-            let (plus_di, minus_di, _) =
-                calculate_di_and_dx(self.smoothed_plus_dm, self.smoothed_minus_dm, self.smoothed_tr);
+            let (plus_di, minus_di, _) = calculate_di_and_dx(
+                self.smoothed_plus_dm,
+                self.smoothed_minus_dm,
+                self.smoothed_tr,
+            );
             Some(AdxOutput {
                 adx: self.current_adx.unwrap_or(f64::NAN),
                 plus_di,
@@ -509,17 +516,19 @@ mod tests {
 
     #[test]
     fn test_adx_streaming_matches_batch() {
-        let highs: Vec<f64> = (0..30).map(|i| 100.0 + (i as f64 * 0.3) + ((i % 3) as f64 * 0.2)).collect();
-        let lows: Vec<f64> = (0..30).map(|i| 99.0 + (i as f64 * 0.3) - ((i % 2) as f64 * 0.1)).collect();
+        let highs: Vec<f64> = (0..30)
+            .map(|i| 100.0 + (i as f64 * 0.3) + ((i % 3) as f64 * 0.2))
+            .collect();
+        let lows: Vec<f64> = (0..30)
+            .map(|i| 99.0 + (i as f64 * 0.3) - ((i % 2) as f64 * 0.1))
+            .collect();
         let closes: Vec<f64> = (0..30).map(|i| 99.5 + i as f64 * 0.3).collect();
 
         let batch = Adx::new(5).unwrap();
         let batch_result = batch.calculate(&(&highs, &lows, &closes)).unwrap();
 
         let mut stream = AdxStream::new(5).unwrap();
-        let bars: Vec<AdxBar> = (0..30)
-            .map(|i| (highs[i], lows[i], closes[i]))
-            .collect();
+        let bars: Vec<AdxBar> = (0..30).map(|i| (highs[i], lows[i], closes[i])).collect();
         let stream_result = stream.init(&bars).unwrap();
 
         for i in 0..batch_result.len() {
@@ -552,9 +561,7 @@ mod tests {
         let closes: Vec<f64> = (0..20).map(|i| 99.5 + i as f64 * 0.5).collect();
 
         let mut stream = AdxStream::new(5).unwrap();
-        let bars: Vec<AdxBar> = (0..20)
-            .map(|i| (highs[i], lows[i], closes[i]))
-            .collect();
+        let bars: Vec<AdxBar> = (0..20).map(|i| (highs[i], lows[i], closes[i])).collect();
         stream.init(&bars).unwrap();
 
         assert!(stream.is_ready());
@@ -596,10 +603,16 @@ mod tests {
                 assert!(r.adx >= 0.0 && r.adx <= 100.0, "ADX should be 0-100");
             }
             if !r.plus_di.is_nan() {
-                assert!(r.plus_di >= 0.0 && r.plus_di <= 100.0, "+DI should be 0-100");
+                assert!(
+                    r.plus_di >= 0.0 && r.plus_di <= 100.0,
+                    "+DI should be 0-100"
+                );
             }
             if !r.minus_di.is_nan() {
-                assert!(r.minus_di >= 0.0 && r.minus_di <= 100.0, "-DI should be 0-100");
+                assert!(
+                    r.minus_di >= 0.0 && r.minus_di <= 100.0,
+                    "-DI should be 0-100"
+                );
             }
         }
     }

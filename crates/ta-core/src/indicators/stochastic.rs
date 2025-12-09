@@ -542,8 +542,7 @@ impl StreamingIndicator<StochBar, StochOutput> for StochStream {
                     return Some(StochOutput::nan());
                 }
 
-                let smoothed_k: f64 =
-                    self.raw_k_buffer.iter().sum::<f64>() / self.slowing as f64;
+                let smoothed_k: f64 = self.raw_k_buffer.iter().sum::<f64>() / self.slowing as f64;
 
                 // Add smoothed %K to buffer for %D calculation
                 if self.smoothed_k_buffer.len() >= self.d_period {
@@ -608,7 +607,9 @@ mod tests {
     #[test]
     fn test_stoch_fast_batch() {
         let stoch = Stoch::new(14, 3, StochType::Fast).unwrap();
-        let result = stoch.calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..])).unwrap();
+        let result = stoch
+            .calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..]))
+            .unwrap();
 
         assert_eq!(result.len(), 15);
 
@@ -641,7 +642,9 @@ mod tests {
     #[test]
     fn test_stoch_slow_batch() {
         let stoch = Stoch::new(14, 3, StochType::Slow).unwrap();
-        let result = stoch.calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..])).unwrap();
+        let result = stoch
+            .calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..]))
+            .unwrap();
 
         assert_eq!(result.len(), 15);
 
@@ -656,7 +659,9 @@ mod tests {
     fn test_stoch_with_shorter_period() {
         // Use shorter periods to get valid results with our test data
         let stoch = Stoch::new(5, 3, StochType::Fast).unwrap();
-        let result = stoch.calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..])).unwrap();
+        let result = stoch
+            .calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..]))
+            .unwrap();
 
         // First %K at index 4, first %D at index 6
         assert!(!result[4].k.is_nan(), "Expected valid %K at index 4");
@@ -670,7 +675,9 @@ mod tests {
         let d_period = 3;
 
         let batch = Stoch::new(k_period, d_period, StochType::Fast).unwrap();
-        let batch_result = batch.calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..])).unwrap();
+        let batch_result = batch
+            .calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..]))
+            .unwrap();
 
         let mut stream = StochStream::new(k_period, d_period, StochType::Fast).unwrap();
         let data: Vec<StochBar> = HIGHS
@@ -685,7 +692,11 @@ mod tests {
 
         for (i, (b, s)) in batch_result.iter().zip(stream_result.iter()).enumerate() {
             if b.k.is_nan() {
-                assert!(s.k.is_nan(), "Mismatch at index {i}: batch K is NaN but stream is {}", s.k);
+                assert!(
+                    s.k.is_nan(),
+                    "Mismatch at index {i}: batch K is NaN but stream is {}",
+                    s.k
+                );
             } else {
                 assert!(
                     (b.k - s.k).abs() < 1e-10,
@@ -696,7 +707,11 @@ mod tests {
             }
 
             if b.d.is_nan() {
-                assert!(s.d.is_nan(), "Mismatch at index {i}: batch D is NaN but stream is {}", s.d);
+                assert!(
+                    s.d.is_nan(),
+                    "Mismatch at index {i}: batch D is NaN but stream is {}",
+                    s.d
+                );
             } else {
                 assert!(
                     (b.d - s.d).abs() < 1e-10,
@@ -714,7 +729,9 @@ mod tests {
         let d_period = 3;
 
         let batch = Stoch::new(k_period, d_period, StochType::Slow).unwrap();
-        let batch_result = batch.calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..])).unwrap();
+        let batch_result = batch
+            .calculate(&(&HIGHS[..], &LOWS[..], &CLOSES[..]))
+            .unwrap();
 
         let mut stream = StochStream::new(k_period, d_period, StochType::Slow).unwrap();
         let data: Vec<StochBar> = HIGHS
@@ -729,7 +746,11 @@ mod tests {
 
         for (i, (b, s)) in batch_result.iter().zip(stream_result.iter()).enumerate() {
             if b.k.is_nan() {
-                assert!(s.k.is_nan(), "Mismatch at index {i}: batch K is NaN but stream is {}", s.k);
+                assert!(
+                    s.k.is_nan(),
+                    "Mismatch at index {i}: batch K is NaN but stream is {}",
+                    s.k
+                );
             } else {
                 assert!(
                     (b.k - s.k).abs() < 1e-10,
@@ -740,7 +761,11 @@ mod tests {
             }
 
             if b.d.is_nan() {
-                assert!(s.d.is_nan(), "Mismatch at index {i}: batch D is NaN but stream is {}", s.d);
+                assert!(
+                    s.d.is_nan(),
+                    "Mismatch at index {i}: batch D is NaN but stream is {}",
+                    s.d
+                );
             } else {
                 assert!(
                     (b.d - s.d).abs() < 1e-10,
@@ -803,7 +828,9 @@ mod tests {
         let lows = vec![50.0, 80.0, 70.0, 90.0, 100.0, 110.0, 105.0];
         let closes = vec![75.0, 150.0, 100.0, 170.0, 195.0, 190.0, 150.0];
 
-        let result = stoch.calculate(&(&highs[..], &lows[..], &closes[..])).unwrap();
+        let result = stoch
+            .calculate(&(&highs[..], &lows[..], &closes[..]))
+            .unwrap();
 
         for output in result.iter().filter(|o| !o.k.is_nan()) {
             assert!(output.k >= 0.0, "%K should be >= 0, got {}", output.k);
@@ -826,7 +853,9 @@ mod tests {
         let lows = vec![flat_price; 5];
         let closes = vec![flat_price; 5];
 
-        let result = stoch.calculate(&(&highs[..], &lows[..], &closes[..])).unwrap();
+        let result = stoch
+            .calculate(&(&highs[..], &lows[..], &closes[..]))
+            .unwrap();
 
         // First valid %K at index 2
         assert!((result[2].k - 50.0).abs() < 1e-10);

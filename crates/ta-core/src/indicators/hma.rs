@@ -370,10 +370,7 @@ mod tests {
         let valid_results: Vec<f64> = result.iter().filter(|x| !x.is_nan()).copied().collect();
 
         // Check that valid results are generally increasing (following the trend)
-        let increasing_count = valid_results
-            .windows(2)
-            .filter(|w| w[1] > w[0])
-            .count();
+        let increasing_count = valid_results.windows(2).filter(|w| w[1] > w[0]).count();
 
         // Most transitions should be increasing given the upward trend
         assert!(
