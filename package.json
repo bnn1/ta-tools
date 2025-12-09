@@ -12,14 +12,11 @@
     }
   },
   "files": [
-    "dist",
-    "dist/**/*.d.ts",
-    "dist/**/*.js",
-    "pkg",
-    "pkg/**/*.d.ts",
-    "pkg/**/*.js",
-    "pkg/**/*.wasm",
-    "pkg/package.json",
+    "dist/index.js",
+    "dist/index.d.ts",
+    "pkg/ta_core.js",
+    "pkg/ta_core.d.ts",
+    "pkg/ta_core_bg.wasm",
     "README.md",
     "LICENSE.md"
   ],
