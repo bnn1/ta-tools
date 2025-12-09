@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [package.metadata.wasm-pack.profile.release]
 # Size-optimized wasm-opt with SIMD, bulk memory, nontrapping float-to-int support
 # Lower sign-extension ops so wasm-opt won't fail on modules that use i32.extend8_s
-wasm-opt = ["--enable-simd", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--signext-lowering", "-Oz"]
+wasm-opt = ["--enable-simd", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-ext", "-Oz"]
 
 [dependencies]
 wasm-bindgen = "0.2"
