@@ -11,6 +11,18 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "files": [
+    "dist",
+    "dist/**/*.d.ts",
+    "dist/**/*.js",
+    "pkg",
+    "pkg/**/*.d.ts",
+    "pkg/**/*.js",
+    "pkg/**/*.wasm",
+    "pkg/package.json",
+    "README.md",
+    "LICENSE.md"
+  ],
   "scripts": {
     "build:wasm": "wasm-pack build crates/ta-core --target nodejs --out-dir ../../pkg",
     "build:ts": "tsc",
