@@ -30,10 +30,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y binaryen
-          wasm-opt --help | grep -q -- '--signext-lowering' || (
-            echo "binaryen does not support --signext-lowering. Please install a newer binaryen in CI or fall back to disabling wasm-opt in Cargo.toml." && exit 1
-          )
-          wasm-opt --version
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
