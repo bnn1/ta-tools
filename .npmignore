@@ -1,0 +1,38 @@
+# Source files
+js/
+crates/
+src/
+
+# Build & compilation
+tsconfig.json
+vitest.config.ts
+Cargo.toml
+Cargo.lock
+.cargo/
+
+# Development
+.git/
+.github/
+scripts/
+benchmarks/
+tests/
+target/
+
+# Development files
+*.bench.ts
+*.test.ts
+*.spec.ts
+PROGRESS.md
+prompt.md
+
+# Node
+node_modules/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
