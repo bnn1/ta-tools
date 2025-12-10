@@ -1,5 +1,5 @@
 {
-  "name": "ta-tools",
+  "name": "@bnn1/ta-tools",
   "version": "0.2.0",
   "description": "Blazing fast technical analysis indicators powered by Rust/WASM",
   "type": "module",
