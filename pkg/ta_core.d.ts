@@ -104,9 +104,9 @@ export class AtrStream {
   constructor(period: number);
   /**
    * Process next bar. Takes high, low, close.
-   * Returns ATR or undefined if not ready.
+   * Returns ATR or NaN if not ready.
    */
-  next(high: number, low: number, close: number): number | undefined;
+  next(high: number, low: number, close: number): number;
   /**
    * Reset the calculator to initial state.
    */
@@ -114,7 +114,7 @@ export class AtrStream {
   /**
    * Get current ATR value without consuming a new bar.
    */
-  current(): number | undefined;
+  current(): number;
   /**
    * Check if calculator has enough data to produce values.
    */
@@ -232,9 +232,9 @@ export class EmaStream {
    */
   constructor(period: number);
   /**
-   * Process next value. Returns EMA or undefined if not ready.
+   * Process next value. Returns EMA or NaN if not ready.
    */
-  next(value: number): number | undefined;
+  next(value: number): number;
   /**
    * Reset the calculator to initial state.
    */
@@ -242,7 +242,7 @@ export class EmaStream {
   /**
    * Get current EMA value without consuming a new value.
    */
-  current(): number | undefined;
+  current(): number;
   /**
    * Check if calculator has enough data to produce values.
    */
@@ -541,9 +541,9 @@ export class RollingVwapStream {
    */
   constructor(period: number);
   /**
-   * Process next candle. Returns VWAP value or undefined if not ready.
+   * Process next candle. Returns VWAP value or NaN if not ready.
    */
-  next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number | undefined;
+  next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number;
   /**
    * Reset the calculator to initial state.
    */
@@ -551,7 +551,7 @@ export class RollingVwapStream {
   /**
    * Get current VWAP value without consuming a new candle.
    */
-  current(): number | undefined;
+  current(): number;
   /**
    * Check if calculator has enough data to produce values.
    */
@@ -574,9 +574,9 @@ export class RsiStream {
    */
   constructor(period: number);
   /**
-   * Process next value. Returns RSI or undefined if not ready.
+   * Process next value. Returns RSI or NaN if not ready.
    */
-  next(value: number): number | undefined;
+  next(value: number): number;
   /**
    * Reset the calculator to initial state.
    */
@@ -584,7 +584,7 @@ export class RsiStream {
   /**
    * Get current RSI value without consuming a new value.
    */
-  current(): number | undefined;
+  current(): number;
   /**
    * Check if calculator has enough data to produce values.
    */
@@ -645,9 +645,9 @@ export class SmaStream {
    */
   constructor(period: number);
   /**
-   * Process next value. Returns SMA or undefined if not ready.
+   * Process next value. Returns SMA or NaN if not ready.
    */
-  next(value: number): number | undefined;
+  next(value: number): number;
   /**
    * Reset the calculator to initial state.
    */
@@ -992,9 +992,9 @@ export class WmaStream {
    */
   constructor(period: number);
   /**
-   * Process next value. Returns WMA or undefined if not ready.
+   * Process next value. Returns WMA or NaN if not ready.
    */
-  next(value: number): number | undefined;
+  next(value: number): number;
   /**
    * Reset the calculator to initial state.
    */

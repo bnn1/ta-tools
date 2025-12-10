@@ -622,22 +622,15 @@ class AtrStream {
     }
     /**
      * Process next bar. Takes high, low, close.
-     * Returns ATR or undefined if not ready.
+     * Returns ATR or NaN if not ready.
      * @param {number} high
      * @param {number} low
      * @param {number} close
-     * @returns {number | undefined}
+     * @returns {number}
      */
     next(high, low, close) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.atrstream_next(retptr, this.__wbg_ptr, high, low, close);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.atrstream_next(this.__wbg_ptr, high, low, close);
+        return ret;
     }
     /**
      * Reset the calculator to initial state.
@@ -655,18 +648,11 @@ class AtrStream {
     }
     /**
      * Get current ATR value without consuming a new bar.
-     * @returns {number | undefined}
+     * @returns {number}
      */
     current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.atrstream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.atrstream_current(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Check if calculator has enough data to produce values.
@@ -1060,20 +1046,13 @@ class EmaStream {
         }
     }
     /**
-     * Process next value. Returns EMA or undefined if not ready.
+     * Process next value. Returns EMA or NaN if not ready.
      * @param {number} value
-     * @returns {number | undefined}
+     * @returns {number}
      */
     next(value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.emastream_next(retptr, this.__wbg_ptr, value);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.emastream_next(this.__wbg_ptr, value);
+        return ret;
     }
     /**
      * Reset the calculator to initial state.
@@ -1091,18 +1070,11 @@ class EmaStream {
     }
     /**
      * Get current EMA value without consuming a new value.
-     * @returns {number | undefined}
+     * @returns {number}
      */
     current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.emastream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.emastream_current(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Check if calculator has enough data to produce values.
@@ -2000,25 +1972,18 @@ class RollingVwapStream {
         }
     }
     /**
-     * Process next candle. Returns VWAP value or undefined if not ready.
+     * Process next candle. Returns VWAP value or NaN if not ready.
      * @param {number} timestamp
      * @param {number} open
      * @param {number} high
      * @param {number} low
      * @param {number} close
      * @param {number} volume
-     * @returns {number | undefined}
+     * @returns {number}
      */
     next(timestamp, open, high, low, close, volume) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rollingvwapstream_next(retptr, this.__wbg_ptr, timestamp, open, high, low, close, volume);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.rollingvwapstream_next(this.__wbg_ptr, timestamp, open, high, low, close, volume);
+        return ret;
     }
     /**
      * Reset the calculator to initial state.
@@ -2036,18 +2001,11 @@ class RollingVwapStream {
     }
     /**
      * Get current VWAP value without consuming a new candle.
-     * @returns {number | undefined}
+     * @returns {number}
      */
     current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rollingvwapstream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.rollingvwapstream_current(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Check if calculator has enough data to produce values.
@@ -2122,20 +2080,13 @@ class RsiStream {
         }
     }
     /**
-     * Process next value. Returns RSI or undefined if not ready.
+     * Process next value. Returns RSI or NaN if not ready.
      * @param {number} value
-     * @returns {number | undefined}
+     * @returns {number}
      */
     next(value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rsistream_next(retptr, this.__wbg_ptr, value);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.rsistream_next(this.__wbg_ptr, value);
+        return ret;
     }
     /**
      * Reset the calculator to initial state.
@@ -2153,18 +2104,11 @@ class RsiStream {
     }
     /**
      * Get current RSI value without consuming a new value.
-     * @returns {number | undefined}
+     * @returns {number}
      */
     current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rsistream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.rsistream_current(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Check if calculator has enough data to produce values.
@@ -2373,20 +2317,13 @@ class SmaStream {
         }
     }
     /**
-     * Process next value. Returns SMA or undefined if not ready.
+     * Process next value. Returns SMA or NaN if not ready.
      * @param {number} value
-     * @returns {number | undefined}
+     * @returns {number}
      */
     next(value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.smastream_next(retptr, this.__wbg_ptr, value);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.smastream_next(this.__wbg_ptr, value);
+        return ret;
     }
     /**
      * Reset the calculator to initial state.
@@ -3340,20 +3277,13 @@ class WmaStream {
         }
     }
     /**
-     * Process next value. Returns WMA or undefined if not ready.
+     * Process next value. Returns WMA or NaN if not ready.
      * @param {number} value
-     * @returns {number | undefined}
+     * @returns {number}
      */
     next(value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.wmastream_next(retptr, this.__wbg_ptr, value);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        const ret = wasm.wmastream_next(this.__wbg_ptr, value);
+        return ret;
     }
     /**
      * Reset the calculator to initial state.

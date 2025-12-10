@@ -255,9 +255,9 @@ impl WasmSmaStream {
             .map_err(|e| JsError::new(&e.to_string()))
     }
 
-    /// Process next value. Returns SMA or undefined if not ready.
-    pub fn next(&mut self, value: f64) -> Option<f64> {
-        self.inner.next(value)
+    /// Process next value. Returns SMA or NaN if not ready.
+    pub fn next(&mut self, value: f64) -> f64 {
+        self.inner.next(value).unwrap_or(f64::NAN)
     }
 
     /// Reset the calculator to initial state.
@@ -301,14 +301,14 @@ impl WasmEmaStream {
             .map_err(|e| JsError::new(&e.to_string()))
     }
 
-    /// Process next value. Returns EMA or undefined if not ready.
-    pub fn next(&mut self, value: f64) -> Option<f64> {
-        self.inner.next(value)
+    /// Process next value. Returns EMA or NaN if not ready.
+    pub fn next(&mut self, value: f64) -> f64 {
+        self.inner.next(value).unwrap_or(f64::NAN)
     }
 
     /// Get current EMA value without consuming a new value.
-    pub fn current(&self) -> Option<f64> {
-        self.inner.current()
+    pub fn current(&self) -> f64 {
+        self.inner.current().unwrap_or(f64::NAN)
     }
 
     /// Reset the calculator to initial state.
@@ -358,14 +358,14 @@ impl WasmRsiStream {
             .map_err(|e| JsError::new(&e.to_string()))
     }
 
-    /// Process next value. Returns RSI or undefined if not ready.
-    pub fn next(&mut self, value: f64) -> Option<f64> {
-        self.inner.next(value)
+    /// Process next value. Returns RSI or NaN if not ready.
+    pub fn next(&mut self, value: f64) -> f64 {
+        self.inner.next(value).unwrap_or(f64::NAN)
     }
 
     /// Get current RSI value without consuming a new value.
-    pub fn current(&self) -> Option<f64> {
-        self.inner.current()
+    pub fn current(&self) -> f64 {
+        self.inner.current().unwrap_or(f64::NAN)
     }
 
     /// Reset the calculator to initial state.
@@ -409,9 +409,9 @@ impl WasmWmaStream {
             .map_err(|e| JsError::new(&e.to_string()))
     }
 
-    /// Process next value. Returns WMA or undefined if not ready.
-    pub fn next(&mut self, value: f64) -> Option<f64> {
-        self.inner.next(value)
+    /// Process next value. Returns WMA or NaN if not ready.
+    pub fn next(&mut self, value: f64) -> f64 {
+        self.inner.next(value).unwrap_or(f64::NAN)
     }
 
     /// Reset the calculator to initial state.
@@ -716,14 +716,14 @@ impl WasmAtrStream {
     }
 
     /// Process next bar. Takes high, low, close.
-    /// Returns ATR or undefined if not ready.
-    pub fn next(&mut self, high: f64, low: f64, close: f64) -> Option<f64> {
-        self.inner.next((high, low, close))
+    /// Returns ATR or NaN if not ready.
+    pub fn next(&mut self, high: f64, low: f64, close: f64) -> f64 {
+        self.inner.next((high, low, close)).unwrap_or(f64::NAN)
     }
 
     /// Get current ATR value without consuming a new bar.
-    pub fn current(&self) -> Option<f64> {
-        self.inner.current()
+    pub fn current(&self) -> f64 {
+        self.inner.current().unwrap_or(f64::NAN)
     }
 
     /// Reset the calculator to initial state.
@@ -1612,7 +1612,7 @@ impl WasmRollingVwapStream {
             .map_err(|e| JsError::new(&e.to_string()))
     }
 
-    /// Process next candle. Returns VWAP value or undefined if not ready.
+    /// Process next candle. Returns VWAP value or NaN if not ready.
     pub fn next(
         &mut self,
         timestamp: f64,
@@ -1621,14 +1621,14 @@ impl WasmRollingVwapStream {
         low: f64,
         close: f64,
         volume: f64,
-    ) -> Option<f64> {
+    ) -> f64 {
         let candle = OHLCV::new(timestamp as i64, open, high, low, close, volume);
-        self.inner.next(candle)
+        self.inner.next(candle).unwrap_or(f64::NAN)
     }
 
     /// Get current VWAP value without consuming a new candle.
-    pub fn current(&self) -> Option<f64> {
-        self.inner.current()
+    pub fn current(&self) -> f64 {
+        self.inner.current().unwrap_or(f64::NAN)
     }
 
     /// Reset the calculator to initial state.
