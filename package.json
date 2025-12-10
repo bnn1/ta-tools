@@ -1,6 +1,6 @@
 {
   "name": "ta-tools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Blazing fast technical analysis indicators powered by Rust/WASM",
   "type": "module",
   "main": "./dist/index.js",
