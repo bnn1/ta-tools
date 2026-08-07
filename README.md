@@ -2,7 +2,7 @@
 
 A high-performance Technical Analysis library written in **Rust** and compiled to **WebAssembly**.
 
-`ta-tools` provides near-native calculation speeds for technical indicators while remaining universally compatible across Node.js, Bun, Deno, and modern browsers.
+`ta-tools` provides near-native calculation speeds for technical indicators as an ESM package for Node.js 26+.
 
 ### Why?
 
@@ -12,7 +12,7 @@ Most existing TA libraries fall into two categories:
 
 `ta-tools` solves this by using **WebAssembly**. It offers the performance of C++ with the portability of JavaScript.
 *   **Zero Compilation:** Users do not need a C++ compiler installed.
-*   **Universal:** The exact same package runs on the server and the client.
+*   **Node.js native:** The package targets the Node.js 26 runtime and publishes ESM only.
 *   **Type Safe:** Built with Rust for memory safety and correctness.
 
 ---
@@ -195,7 +195,7 @@ const { open, high, low, close, volume, time } = extractOHLCV(candles);
 
 `ta-tools` is optimized to minimize boundary overhead between JavaScript and WebAssembly:
 
-*   **Zero-Copy Operations:** Arrays are passed directly to WASM without copying
+*   **Typed-array Operations:** `Float64Array` keeps the JavaScript boundary columnar; the current WASM glue copies inputs into WASM memory.
 *   **Memory:** Uses flat `Float64Array` buffers to avoid object overhead
 *   **Precision:** All calculations use 64-bit floating-point precision (`f64`)
 *   **Compilation:** WASM is pre-compiled and optimized with `wasm-opt -Oz`
@@ -234,26 +234,26 @@ For full per-indicator, dataset, and streaming breakdowns see `benchmarks/2025-1
 
 *   [Rust](https://www.rust-lang.org/tools/install) (1.56+)
 *   [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
-*   Node.js 22+
+*   Node.js 26+
 
 ### Build
 
 ```bash
-# Full build (WASM + TypeScript)
-npm run build
+# Full build (WASM + ESM bundle)
+pnpm run build
 
 # WASM only
-npm run build:wasm
+pnpm run build:wasm
 
-# TypeScript only
-npm run build:ts
+# JavaScript bundle only
+pnpm run build:js
 ```
 
 ### Test
 
 ```bash
-npm test
-npm run bench
+pnpm run test
+pnpm run bench
 ```
 
 ### Project Structure
@@ -264,8 +264,8 @@ npm run bench
 │   └── src/indicators/        # Indicator implementations
 ├── js/                        # TypeScript wrapper
 │   └── index.ts              # High-level API
-├── dist/                     # Compiled TypeScript
-├── pkg/                      # Compiled WASM
+├── dist/                     # Bundled ESM, declarations, and source map
+├── pkg/                      # Transitional compiled WASM
 └── tests/                    # Integration tests
 ```
 
@@ -276,7 +276,7 @@ Contributions welcome! Please:
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new indicators
-4. Ensure `npm run build && npm test` passes
+4. Ensure `pnpm run build && pnpm run test:built` passes
 5. Open a pull request
 
 ## Roadmap

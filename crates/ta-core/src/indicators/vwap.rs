@@ -61,7 +61,7 @@ const MS_PER_DAY: i64 = 86_400_000;
 /// This is used to detect session boundaries.
 #[inline]
 fn utc_day(timestamp_ms: i64) -> i64 {
-    timestamp_ms / MS_PER_DAY
+    timestamp_ms.div_euclid(MS_PER_DAY)
 }
 
 /// Calculate typical price for a candle.
@@ -713,6 +713,20 @@ mod tests {
     }
 
     #[test]
+    fn test_session_vwap_negative_epoch_day_boundary() {
+        let candles = vec![
+            OHLCV::new(-1, 100.0, 100.0, 100.0, 100.0, 1.0),
+            OHLCV::new(0, 200.0, 200.0, 200.0, 200.0, 1.0),
+        ];
+
+        let result = SessionVwap::new().calculate(&candles).unwrap();
+
+        // -1 ms is the final instant of the UTC day before the Unix epoch.
+        assert!(approx_eq(result[0], 100.0, 0.0001));
+        assert!(approx_eq(result[1], 200.0, 0.0001));
+    }
+
+    #[test]
     fn test_session_vwap_stream() {
         let candles = make_candles(
             &[
@@ -863,14 +877,14 @@ mod tests {
             60000,
         );
 
+        let batch = AnchoredVwap::new(1).calculate(&candles).unwrap();
         let mut stream = AnchoredVwapStream::with_anchor(1700000060000);
         let result = stream.init(&candles).unwrap();
 
-        // First value should be NaN (before anchor)
-        assert!(result[0].is_nan());
-        // Rest should have values
-        assert!(!result[1].is_nan());
-        assert!(!result[2].is_nan());
+        assert_eq!(batch.len(), result.len());
+        for (batch_value, stream_value) in batch.iter().zip(result.iter()) {
+            assert!(approx_eq(*batch_value, *stream_value, 0.0001));
+        }
     }
 
     #[test]
@@ -883,6 +897,45 @@ mod tests {
         let val1 = stream.next(candle1);
         assert!(val1.is_some());
         assert_eq!(stream.anchor_timestamp(), Some(1700000000000));
+    }
+
+    #[test]
+    fn test_vwap_stream_readiness_current_and_reset() {
+        let first = OHLCV::new(0, 100.0, 100.0, 100.0, 100.0, 1.0);
+        let second = OHLCV::new(1, 200.0, 200.0, 200.0, 200.0, 1.0);
+
+        let mut session = SessionVwapStream::new();
+        assert!(!session.is_ready());
+        assert_eq!(session.current(), None);
+        assert_eq!(session.next(first), Some(100.0));
+        assert!(session.is_ready());
+        assert_eq!(session.current(), Some(100.0));
+        session.reset();
+        assert!(!session.is_ready());
+        assert_eq!(session.current(), None);
+
+        let mut rolling = RollingVwapStream::new(2).unwrap();
+        assert_eq!(rolling.next(first), None);
+        assert!(!rolling.is_ready());
+        assert_eq!(rolling.current(), None);
+        assert_eq!(rolling.next(second), Some(150.0));
+        assert!(rolling.is_ready());
+        assert_eq!(rolling.current(), Some(150.0));
+        rolling.reset();
+        assert!(!rolling.is_ready());
+        assert_eq!(rolling.current(), None);
+
+        let mut anchored = AnchoredVwapStream::with_anchor(second.timestamp);
+        assert_eq!(anchored.next(first), None);
+        assert!(!anchored.is_ready());
+        assert_eq!(anchored.current(), None);
+        assert_eq!(anchored.next(second), Some(200.0));
+        assert!(anchored.is_ready());
+        assert_eq!(anchored.current(), Some(200.0));
+        anchored.reset();
+        assert!(!anchored.is_ready());
+        assert_eq!(anchored.current(), None);
+        assert_eq!(anchored.anchor_timestamp(), None);
     }
 
     // ========== Edge Cases ==========

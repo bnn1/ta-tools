@@ -1,1012 +1,1105 @@
 /* tslint:disable */
 /* eslint-disable */
 
+/**
+ * Streaming ADX calculator.
+ */
 export class AdxStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data.
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
-  /**
-   * Create a new streaming ADX calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next bar.
-   */
-  next(high: number, low: number, close: number): WasmAdxOutput | undefined;
-  /**
-   * Reset the calculator.
-   */
-  reset(): void;
-  /**
-   * Get current values.
-   */
-  current(): WasmAdxOutput | undefined;
-  /**
-   * Check if ready.
-   */
-  isReady(): boolean;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current values.
+     */
+    current(): WasmAdxOutput | undefined;
+    /**
+     * Initialize with historical data.
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
+    /**
+     * Check if ready.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming ADX calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next bar.
+     */
+    next(high: number, low: number, close: number): WasmAdxOutput | undefined;
+    /**
+     * Reset the calculator.
+     */
+    reset(): void;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming Anchored VWAP calculator.
+ */
 export class AnchoredVwapStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Anchor at the next candle received.
-   */
-  anchorNow(): void;
-  /**
-   * Set the anchor timestamp. VWAP will start accumulating from this point.
-   */
-  setAnchor(timestamp: number): void;
-  /**
-   * Create a new streaming Anchored VWAP calculator with a specific anchor timestamp.
-   */
-  static withAnchor(anchor_timestamp: number): AnchoredVwapStream;
-  /**
-   * Initialize with historical OHLCV data.
-   * Returns array of VWAP values.
-   */
-  init(timestamps: Float64Array, opens: Float64Array, highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
-  /**
-   * Get the anchor timestamp if set.
-   */
-  anchorTimestamp(): number | undefined;
-  /**
-   * Get cumulative volume.
-   */
-  cumulativeVolume(): number;
-  /**
-   * Get cumulative typical price × volume.
-   */
-  cumulativeTpVolume(): number;
-  /**
-   * Create a new streaming Anchored VWAP calculator.
-   * Use `setAnchor()` or `anchorNow()` to set the anchor point.
-   */
-  constructor();
-  /**
-   * Process next candle. Returns VWAP value or undefined if before anchor.
-   */
-  next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current VWAP value without consuming a new candle.
-   */
-  current(): number | undefined;
-  /**
-   * Check if calculator has been anchored and is producing values.
-   */
-  isReady(): boolean;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Anchor at the next candle received.
+     */
+    anchorNow(): void;
+    /**
+     * Get the anchor timestamp if set.
+     */
+    anchorTimestamp(): number | undefined;
+    /**
+     * Get cumulative typical price × volume.
+     */
+    cumulativeTpVolume(): number;
+    /**
+     * Get cumulative volume.
+     */
+    cumulativeVolume(): number;
+    /**
+     * Get current VWAP value without consuming a new candle.
+     */
+    current(): number | undefined;
+    /**
+     * Initialize with historical OHLCV data.
+     * Returns array of VWAP values.
+     */
+    init(timestamps: Float64Array, opens: Float64Array, highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
+    /**
+     * Check if calculator has been anchored and is producing values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Anchored VWAP calculator.
+     * Use `setAnchor()` or `anchorNow()` to set the anchor point.
+     */
+    constructor();
+    /**
+     * Process next candle. Returns VWAP value or undefined if before anchor.
+     */
+    next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Set the anchor timestamp. VWAP will start accumulating from this point.
+     */
+    setAnchor(timestamp: number): void;
+    /**
+     * Create a new streaming Anchored VWAP calculator with a specific anchor timestamp.
+     */
+    static withAnchor(anchor_timestamp: number): AnchoredVwapStream;
 }
 
+/**
+ * Streaming ATR calculator for real-time O(1) updates.
+ */
 export class AtrStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical OHLC data.
-   * Takes three arrays: highs, lows, closes.
-   * Returns array of ATR values.
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array): Float64Array;
-  /**
-   * Create a new streaming ATR calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next bar. Takes high, low, close.
-   * Returns ATR or NaN if not ready.
-   */
-  next(high: number, low: number, close: number): number;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current ATR value without consuming a new bar.
-   */
-  current(): number;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current ATR value without consuming a new bar.
+     */
+    current(): number;
+    /**
+     * Initialize with historical OHLC data.
+     * Takes three arrays: highs, lows, closes.
+     * Returns array of ATR values.
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming ATR calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next bar. Takes high, low, close.
+     * Returns ATR or NaN if not ready.
+     */
+    next(high: number, low: number, close: number): number;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming Bollinger Bands calculator for real-time O(1) updates.
+ */
 export class BBandsStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Returns object with arrays.
-   */
-  init(data: Float64Array): any;
-  /**
-   * Create a new streaming Bollinger Bands calculator.
-   */
-  constructor(period: number, k: number);
-  /**
-   * Process next value. Returns BBands output or undefined if not ready.
-   */
-  next(value: number): WasmBBandsOutput | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the K multiplier.
-   */
-  readonly k: number;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data. Returns object with arrays.
+     */
+    init(data: Float64Array): any;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Bollinger Bands calculator.
+     */
+    constructor(period: number, k: number);
+    /**
+     * Process next value. Returns BBands output or undefined if not ready.
+     */
+    next(value: number): WasmBBandsOutput | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the K multiplier.
+     */
+    readonly k: number;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming CVD calculator for OHLCV data.
+ */
 export class CvdOhlcvStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical OHLCV data.
-   * Takes four arrays: highs, lows, closes, volumes.
-   * Returns array of CVD values.
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
-  /**
-   * Create a new streaming CVD calculator for OHLCV data.
-   */
-  constructor();
-  /**
-   * Process next bar. Takes high, low, close, volume.
-   * Returns CVD value or undefined if not ready.
-   */
-  next(high: number, low: number, close: number, volume: number): number | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current CVD value without consuming a new bar.
-   */
-  current(): number | undefined;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current CVD value without consuming a new bar.
+     */
+    current(): number | undefined;
+    /**
+     * Initialize with historical OHLCV data.
+     * Takes four arrays: highs, lows, closes, volumes.
+     * Returns array of CVD values.
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming CVD calculator for OHLCV data.
+     */
+    constructor();
+    /**
+     * Process next bar. Takes high, low, close, volume.
+     * Returns CVD value or undefined if not ready.
+     */
+    next(high: number, low: number, close: number, volume: number): number | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
 }
 
+/**
+ * Streaming CVD calculator for pre-computed delta values.
+ */
 export class CvdStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical delta values.
-   * Returns array of CVD values.
-   */
-  init(deltas: Float64Array): Float64Array;
-  /**
-   * Create a new streaming CVD calculator.
-   */
-  constructor();
-  /**
-   * Process next delta value. Returns CVD value or undefined if NaN input.
-   */
-  next(delta: number): number | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current CVD value without consuming a new delta.
-   */
-  current(): number | undefined;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current CVD value without consuming a new delta.
+     */
+    current(): number | undefined;
+    /**
+     * Initialize with historical delta values.
+     * Returns array of CVD values.
+     */
+    init(deltas: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming CVD calculator.
+     */
+    constructor();
+    /**
+     * Process next delta value. Returns CVD value or undefined if NaN input.
+     */
+    next(delta: number): number | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
 }
 
+/**
+ * Streaming EMA calculator for real-time O(1) updates.
+ */
 export class EmaStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Returns array of EMA values.
-   */
-  init(data: Float64Array): Float64Array;
-  /**
-   * Create a new streaming EMA calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next value. Returns EMA or NaN if not ready.
-   */
-  next(value: number): number;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current EMA value without consuming a new value.
-   */
-  current(): number;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the smoothing multiplier.
-   */
-  readonly multiplier: number;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current EMA value without consuming a new value.
+     */
+    current(): number;
+    /**
+     * Initialize with historical data. Returns array of EMA values.
+     */
+    init(data: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming EMA calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next value. Returns EMA or NaN if not ready.
+     */
+    next(value: number): number;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the smoothing multiplier.
+     */
+    readonly multiplier: number;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * FRVP output returned to JavaScript.
+ */
 export class FrvpOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Volume at POC
-   */
-  readonly pocVolume: number;
-  /**
-   * Highest price in the range
-   */
-  readonly rangeHigh: number;
-  /**
-   * Total volume in the range
-   */
-  readonly totalVolume: number;
-  /**
-   * Volume within the Value Area
-   */
-  readonly valueAreaVolume: number;
-  /**
-   * Point of Control - price level with highest volume
-   */
-  readonly poc: number;
-  /**
-   * Value Area High - upper boundary of value area
-   */
-  readonly vah: number;
-  /**
-   * Value Area Low - lower boundary of value area
-   */
-  readonly val: number;
-  /**
-   * Get histogram as a JavaScript object with arrays
-   */
-  readonly histogram: any;
-  /**
-   * Lowest price in the range
-   */
-  readonly rangeLow: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get histogram as a JavaScript object with arrays
+     */
+    readonly histogram: any;
+    /**
+     * Point of Control - price level with highest volume
+     */
+    readonly poc: number;
+    /**
+     * Volume at POC
+     */
+    readonly pocVolume: number;
+    /**
+     * Highest price in the range
+     */
+    readonly rangeHigh: number;
+    /**
+     * Lowest price in the range
+     */
+    readonly rangeLow: number;
+    /**
+     * Total volume in the range
+     */
+    readonly totalVolume: number;
+    /**
+     * Value Area High - upper boundary of value area
+     */
+    readonly vah: number;
+    /**
+     * Value Area Low - lower boundary of value area
+     */
+    readonly val: number;
+    /**
+     * Volume within the Value Area
+     */
+    readonly valueAreaVolume: number;
 }
 
+/**
+ * Streaming FRVP calculator for real-time updates.
+ */
 export class FrvpStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical OHLCV data.
-   *
-   * @param highs - Array of high prices
-   * @param lows - Array of low prices
-   * @param closes - Array of close prices
-   * @param volumes - Array of volumes
-   * @returns FRVP output for the entire range
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): FrvpOutput | undefined;
-  /**
-   * Create a new streaming FRVP calculator.
-   *
-   * @param numBins - Number of price bins (rows) in histogram
-   * @param valueAreaPercent - Optional percentage of volume for value area (0.0-1.0, default 0.70)
-   */
-  constructor(num_bins: number, value_area_percent?: number | null);
-  /**
-   * Process next candle.
-   *
-   * @param high - High price
-   * @param low - Low price
-   * @param close - Close price
-   * @param volume - Volume
-   * @returns Updated FRVP output or undefined if not ready
-   */
-  next(high: number, low: number, close: number, volume: number): FrvpOutput | undefined;
-  /**
-   * Clear all candles from the buffer.
-   */
-  clear(): void;
-  /**
-   * Reset the calculator and clear all candles.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has been initialized with data.
-   */
-  isReady(): boolean;
-  /**
-   * Get the number of candles in the buffer.
-   */
-  readonly candleCount: number;
-  /**
-   * Get the number of price bins.
-   */
-  readonly numBins: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Clear all candles from the buffer.
+     */
+    clear(): void;
+    /**
+     * Initialize with historical OHLCV data.
+     *
+     * @param highs - Array of high prices
+     * @param lows - Array of low prices
+     * @param closes - Array of close prices
+     * @param volumes - Array of volumes
+     * @returns FRVP output for the entire range
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): FrvpOutput | undefined;
+    /**
+     * Check if calculator has been initialized with data.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming FRVP calculator.
+     *
+     * @param numBins - Number of price bins (rows) in histogram
+     * @param valueAreaPercent - Optional percentage of volume for value area (0.0-1.0, default 0.70)
+     */
+    constructor(num_bins: number, value_area_percent?: number | null);
+    /**
+     * Process next candle.
+     *
+     * @param high - High price
+     * @param low - Low price
+     * @param close - Close price
+     * @param volume - Volume
+     * @returns Updated FRVP output or undefined if not ready
+     */
+    next(high: number, low: number, close: number, volume: number): FrvpOutput | undefined;
+    /**
+     * Reset the calculator and clear all candles.
+     */
+    reset(): void;
+    /**
+     * Get the number of candles in the buffer.
+     */
+    readonly candleCount: number;
+    /**
+     * Get the number of price bins.
+     */
+    readonly numBins: number;
 }
 
+/**
+ * Streaming HMA calculator for real-time updates.
+ */
 export class HmaStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data.
-   */
-  init(data: Float64Array): Float64Array;
-  /**
-   * Create a new streaming HMA calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next value.
-   */
-  next(value: number): number | undefined;
-  /**
-   * Reset the calculator.
-   */
-  reset(): void;
-  /**
-   * Check if ready.
-   */
-  isReady(): boolean;
-  /**
-   * Get the half period.
-   */
-  readonly halfPeriod: number;
-  /**
-   * Get the sqrt period.
-   */
-  readonly sqrtPeriod: number;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data.
+     */
+    init(data: Float64Array): Float64Array;
+    /**
+     * Check if ready.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming HMA calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next value.
+     */
+    next(value: number): number | undefined;
+    /**
+     * Reset the calculator.
+     */
+    reset(): void;
+    /**
+     * Get the half period.
+     */
+    readonly halfPeriod: number;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
+    /**
+     * Get the sqrt period.
+     */
+    readonly sqrtPeriod: number;
 }
 
+/**
+ * Streaming Ichimoku Cloud calculator.
+ */
 export class IchimokuStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data.
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
-  /**
-   * Create a new streaming Ichimoku calculator with default periods (9, 26, 52).
-   */
-  constructor(tenkan_period?: number | null, kijun_period?: number | null, senkou_b_period?: number | null);
-  /**
-   * Process next bar.
-   */
-  next(high: number, low: number, close: number): WasmIchimokuOutput | undefined;
-  /**
-   * Reset the calculator.
-   */
-  reset(): void;
-  /**
-   * Check if ready.
-   */
-  isReady(): boolean;
-  /**
-   * Get the Kijun-sen period.
-   */
-  readonly kijunPeriod: number;
-  /**
-   * Get the Tenkan-sen period.
-   */
-  readonly tenkanPeriod: number;
-  /**
-   * Get the Senkou Span B period.
-   */
-  readonly senkouBPeriod: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data.
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
+    /**
+     * Check if ready.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Ichimoku calculator with default periods (9, 26, 52).
+     */
+    constructor(tenkan_period?: number | null, kijun_period?: number | null, senkou_b_period?: number | null);
+    /**
+     * Process next bar.
+     */
+    next(high: number, low: number, close: number): WasmIchimokuOutput | undefined;
+    /**
+     * Reset the calculator.
+     */
+    reset(): void;
+    /**
+     * Get the Kijun-sen period.
+     */
+    readonly kijunPeriod: number;
+    /**
+     * Get the Senkou Span B period.
+     */
+    readonly senkouBPeriod: number;
+    /**
+     * Get the Tenkan-sen period.
+     */
+    readonly tenkanPeriod: number;
 }
 
+/**
+ * Streaming Linear Regression calculator.
+ */
 export class LinRegStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data.
-   */
-  init(data: Float64Array): any;
-  /**
-   * Create a new streaming Linear Regression calculator.
-   */
-  constructor(period: number, num_std_dev?: number | null);
-  /**
-   * Process next value.
-   */
-  next(value: number): WasmLinRegOutput | undefined;
-  /**
-   * Reset the calculator.
-   */
-  reset(): void;
-  /**
-   * Check if ready.
-   */
-  isReady(): boolean;
-  /**
-   * Get the number of standard deviations.
-   */
-  readonly numStdDev: number;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data.
+     */
+    init(data: Float64Array): any;
+    /**
+     * Check if ready.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Linear Regression calculator.
+     */
+    constructor(period: number, num_std_dev?: number | null);
+    /**
+     * Process next value.
+     */
+    next(value: number): WasmLinRegOutput | undefined;
+    /**
+     * Reset the calculator.
+     */
+    reset(): void;
+    /**
+     * Get the number of standard deviations.
+     */
+    readonly numStdDev: number;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming MACD calculator for real-time O(1) updates.
+ */
 export class MacdStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Returns array of MACD outputs as JS object.
-   */
-  init(data: Float64Array): any;
-  /**
-   * Create a new streaming MACD calculator.
-   */
-  constructor(fast_period: number, slow_period: number, signal_period: number);
-  /**
-   * Process next value. Returns MACD output or undefined if not ready.
-   */
-  next(value: number): WasmMacdOutput | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the fast period.
-   */
-  readonly fastPeriod: number;
-  /**
-   * Get the slow period.
-   */
-  readonly slowPeriod: number;
-  /**
-   * Get the signal period.
-   */
-  readonly signalPeriod: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data. Returns array of MACD outputs as JS object.
+     */
+    init(data: Float64Array): any;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming MACD calculator.
+     */
+    constructor(fast_period: number, slow_period: number, signal_period: number);
+    /**
+     * Process next value. Returns MACD output or undefined if not ready.
+     */
+    next(value: number): WasmMacdOutput | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the fast period.
+     */
+    readonly fastPeriod: number;
+    /**
+     * Get the signal period.
+     */
+    readonly signalPeriod: number;
+    /**
+     * Get the slow period.
+     */
+    readonly slowPeriod: number;
 }
 
+/**
+ * Streaming MFI calculator for real-time O(1) updates.
+ */
 export class MfiStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical OHLCV data.
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
-  /**
-   * Create a new streaming MFI calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next bar.
-   */
-  next(high: number, low: number, close: number, volume: number): number | undefined;
-  /**
-   * Reset the calculator.
-   */
-  reset(): void;
-  /**
-   * Get current MFI value.
-   */
-  current(): number | undefined;
-  /**
-   * Check if ready.
-   */
-  isReady(): boolean;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current MFI value.
+     */
+    current(): number | undefined;
+    /**
+     * Initialize with historical OHLCV data.
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
+    /**
+     * Check if ready.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming MFI calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next bar.
+     */
+    next(high: number, low: number, close: number, volume: number): number | undefined;
+    /**
+     * Reset the calculator.
+     */
+    reset(): void;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming Rolling VWAP calculator with sliding window.
+ */
 export class RollingVwapStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical OHLCV data.
-   * Returns array of VWAP values.
-   */
-  init(timestamps: Float64Array, opens: Float64Array, highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
-  /**
-   * Create a new streaming Rolling VWAP calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next candle. Returns VWAP value or NaN if not ready.
-   */
-  next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current VWAP value without consuming a new candle.
-   */
-  current(): number;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current VWAP value without consuming a new candle.
+     */
+    current(): number;
+    /**
+     * Initialize with historical OHLCV data.
+     * Returns array of VWAP values.
+     */
+    init(timestamps: Float64Array, opens: Float64Array, highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Rolling VWAP calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next candle. Returns VWAP value or NaN if not ready.
+     */
+    next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming RSI calculator for real-time O(1) updates.
+ */
 export class RsiStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Returns array of RSI values.
-   */
-  init(data: Float64Array): Float64Array;
-  /**
-   * Create a new streaming RSI calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next value. Returns RSI or NaN if not ready.
-   */
-  next(value: number): number;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current RSI value without consuming a new value.
-   */
-  current(): number;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get current RSI value without consuming a new value.
+     */
+    current(): number;
+    /**
+     * Initialize with historical data. Returns array of RSI values.
+     */
+    init(data: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming RSI calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next value. Returns RSI or NaN if not ready.
+     */
+    next(value: number): number;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming Session VWAP calculator (resets daily at UTC midnight).
+ */
 export class SessionVwapStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical OHLCV data.
-   * Returns array of VWAP values.
-   */
-  init(timestamps: Float64Array, opens: Float64Array, highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
-  /**
-   * Get cumulative volume.
-   */
-  cumulativeVolume(): number;
-  /**
-   * Get cumulative typical price × volume.
-   */
-  cumulativeTpVolume(): number;
-  /**
-   * Create a new streaming Session VWAP calculator.
-   */
-  constructor();
-  /**
-   * Process next candle. Returns VWAP value.
-   */
-  next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Get current VWAP value without consuming a new candle.
-   */
-  current(): number | undefined;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Get cumulative typical price × volume.
+     */
+    cumulativeTpVolume(): number;
+    /**
+     * Get cumulative volume.
+     */
+    cumulativeVolume(): number;
+    /**
+     * Get current VWAP value without consuming a new candle.
+     */
+    current(): number | undefined;
+    /**
+     * Initialize with historical OHLCV data.
+     * Returns array of VWAP values.
+     */
+    init(timestamps: Float64Array, opens: Float64Array, highs: Float64Array, lows: Float64Array, closes: Float64Array, volumes: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Session VWAP calculator.
+     */
+    constructor();
+    /**
+     * Process next candle. Returns VWAP value.
+     */
+    next(timestamp: number, open: number, high: number, low: number, close: number, volume: number): number | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
 }
 
+/**
+ * Streaming SMA calculator for real-time O(1) updates.
+ */
 export class SmaStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Returns array of SMA values.
-   */
-  init(data: Float64Array): Float64Array;
-  /**
-   * Create a new streaming SMA calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next value. Returns SMA or NaN if not ready.
-   */
-  next(value: number): number;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data. Returns array of SMA values.
+     */
+    init(data: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming SMA calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next value. Returns SMA or NaN if not ready.
+     */
+    next(value: number): number;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
+/**
+ * Streaming Fast Stochastic calculator for real-time O(1) updates.
+ */
 export class StochFastStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Takes parallel arrays of highs, lows, closes.
-   * Returns array of Stochastic outputs as JS object with k and d arrays.
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
-  /**
-   * Create a new streaming Fast Stochastic calculator.
-   */
-  constructor(k_period: number, d_period: number);
-  /**
-   * Process next bar. Takes high, low, close.
-   * Returns Stochastic output or undefined if not ready.
-   */
-  next(high: number, low: number, close: number): WasmStochOutput | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the D period.
-   */
-  readonly dPeriod: number;
-  /**
-   * Get the K period.
-   */
-  readonly kPeriod: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data. Takes parallel arrays of highs, lows, closes.
+     * Returns array of Stochastic outputs as JS object with k and d arrays.
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Fast Stochastic calculator.
+     */
+    constructor(k_period: number, d_period: number);
+    /**
+     * Process next bar. Takes high, low, close.
+     * Returns Stochastic output or undefined if not ready.
+     */
+    next(high: number, low: number, close: number): WasmStochOutput | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the D period.
+     */
+    readonly dPeriod: number;
+    /**
+     * Get the K period.
+     */
+    readonly kPeriod: number;
 }
 
+/**
+ * Streaming Stochastic RSI calculator for real-time O(1) updates.
+ */
 export class StochRsiStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data.
-   * Returns an object with `k` and `d` arrays.
-   */
-  init(data: Float64Array): any;
-  /**
-   * Create a new streaming Stochastic RSI calculator.
-   */
-  constructor(rsi_period: number, stoch_period: number, k_smooth: number, d_period: number);
-  /**
-   * Process next value. Returns Stochastic RSI output or undefined if not ready.
-   */
-  next(value: number): WasmStochRsiOutput | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the RSI period.
-   */
-  readonly rsiPeriod: number;
-  /**
-   * Get the stochastic lookback period.
-   */
-  readonly stochPeriod: number;
-  /**
-   * Get the D period.
-   */
-  readonly dPeriod: number;
-  /**
-   * Get the K smoothing period.
-   */
-  readonly kSmooth: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data.
+     * Returns an object with `k` and `d` arrays.
+     */
+    init(data: Float64Array): any;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Stochastic RSI calculator.
+     */
+    constructor(rsi_period: number, stoch_period: number, k_smooth: number, d_period: number);
+    /**
+     * Process next value. Returns Stochastic RSI output or undefined if not ready.
+     */
+    next(value: number): WasmStochRsiOutput | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the D period.
+     */
+    readonly dPeriod: number;
+    /**
+     * Get the K smoothing period.
+     */
+    readonly kSmooth: number;
+    /**
+     * Get the RSI period.
+     */
+    readonly rsiPeriod: number;
+    /**
+     * Get the stochastic lookback period.
+     */
+    readonly stochPeriod: number;
 }
 
+/**
+ * Streaming Slow Stochastic calculator for real-time O(1) updates.
+ */
 export class StochSlowStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Takes parallel arrays of highs, lows, closes.
-   * Returns array of Stochastic outputs as JS object with k and d arrays.
-   */
-  init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
-  /**
-   * Create a new streaming Slow Stochastic calculator.
-   */
-  constructor(k_period: number, d_period: number, slowing: number);
-  /**
-   * Process next bar. Takes high, low, close.
-   * Returns Stochastic output or undefined if not ready.
-   */
-  next(high: number, low: number, close: number): WasmStochOutput | undefined;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the slowing period.
-   */
-  readonly slowing: number;
-  /**
-   * Get the D period.
-   */
-  readonly dPeriod: number;
-  /**
-   * Get the K period.
-   */
-  readonly kPeriod: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data. Takes parallel arrays of highs, lows, closes.
+     * Returns array of Stochastic outputs as JS object with k and d arrays.
+     */
+    init(highs: Float64Array, lows: Float64Array, closes: Float64Array): any;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming Slow Stochastic calculator.
+     */
+    constructor(k_period: number, d_period: number, slowing: number);
+    /**
+     * Process next bar. Takes high, low, close.
+     * Returns Stochastic output or undefined if not ready.
+     */
+    next(high: number, low: number, close: number): WasmStochOutput | undefined;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the D period.
+     */
+    readonly dPeriod: number;
+    /**
+     * Get the K period.
+     */
+    readonly kPeriod: number;
+    /**
+     * Get the slowing period.
+     */
+    readonly slowing: number;
 }
 
+/**
+ * Single row in the volume profile histogram returned to JavaScript.
+ */
 export class VolumeProfileRow {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Lower bound of the price bin
-   */
-  readonly low: number;
-  /**
-   * Upper bound of the price bin
-   */
-  readonly high: number;
-  /**
-   * Price level (center of the bin)
-   */
-  readonly price: number;
-  /**
-   * Volume at this price level
-   */
-  readonly volume: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Upper bound of the price bin
+     */
+    readonly high: number;
+    /**
+     * Lower bound of the price bin
+     */
+    readonly low: number;
+    /**
+     * Price level (center of the bin)
+     */
+    readonly price: number;
+    /**
+     * Volume at this price level
+     */
+    readonly volume: number;
 }
 
+/**
+ * ADX output for WASM.
+ */
 export class WasmAdxOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * ADX value (0-100)
-   */
-  readonly adx: number;
-  /**
-   * +DI value (0-100)
-   */
-  readonly plusDi: number;
-  /**
-   * -DI value (0-100)
-   */
-  readonly minusDi: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * ADX value (0-100)
+     */
+    readonly adx: number;
+    /**
+     * -DI value (0-100)
+     */
+    readonly minusDi: number;
+    /**
+     * +DI value (0-100)
+     */
+    readonly plusDi: number;
 }
 
+/**
+ * Bollinger Bands output for streaming mode.
+ */
 export class WasmBBandsOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Lower band value
-   */
-  readonly lower: number;
-  /**
-   * Upper band value
-   */
-  readonly upper: number;
-  /**
-   * Middle band (SMA) value
-   */
-  readonly middle: number;
-  /**
-   * Bandwidth value
-   */
-  readonly bandwidth: number;
-  /**
-   * %B indicator value
-   */
-  readonly percentB: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Bandwidth value
+     */
+    readonly bandwidth: number;
+    /**
+     * Lower band value
+     */
+    readonly lower: number;
+    /**
+     * Middle band (SMA) value
+     */
+    readonly middle: number;
+    /**
+     * %B indicator value
+     */
+    readonly percentB: number;
+    /**
+     * Upper band value
+     */
+    readonly upper: number;
 }
 
+/**
+ * Ichimoku output for WASM.
+ */
 export class WasmIchimokuOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Tenkan-sen (Conversion Line)
-   */
-  readonly tenkanSen: number;
-  /**
-   * Chikou Span (Lagging Span)
-   */
-  readonly chikouSpan: number;
-  /**
-   * Senkou Span A (Leading Span A)
-   */
-  readonly senkouSpanA: number;
-  /**
-   * Senkou Span B (Leading Span B)
-   */
-  readonly senkouSpanB: number;
-  /**
-   * Kijun-sen (Base Line)
-   */
-  readonly kijunSen: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Chikou Span (Lagging Span)
+     */
+    readonly chikouSpan: number;
+    /**
+     * Kijun-sen (Base Line)
+     */
+    readonly kijunSen: number;
+    /**
+     * Senkou Span A (Leading Span A)
+     */
+    readonly senkouSpanA: number;
+    /**
+     * Senkou Span B (Leading Span B)
+     */
+    readonly senkouSpanB: number;
+    /**
+     * Tenkan-sen (Conversion Line)
+     */
+    readonly tenkanSen: number;
 }
 
+/**
+ * Linear Regression output for WASM.
+ */
 export class WasmLinRegOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Pearson's R (-1 to 1)
-   */
-  readonly r: number;
-  /**
-   * Lower channel
-   */
-  readonly lower: number;
-  /**
-   * Slope
-   */
-  readonly slope: number;
-  /**
-   * Upper channel
-   */
-  readonly upper: number;
-  /**
-   * Regression value
-   */
-  readonly value: number;
-  /**
-   * R-squared (0 to 1)
-   */
-  readonly rSquared: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Lower channel
+     */
+    readonly lower: number;
+    /**
+     * Pearson's R (-1 to 1)
+     */
+    readonly r: number;
+    /**
+     * R-squared (0 to 1)
+     */
+    readonly rSquared: number;
+    /**
+     * Slope
+     */
+    readonly slope: number;
+    /**
+     * Upper channel
+     */
+    readonly upper: number;
+    /**
+     * Regression value
+     */
+    readonly value: number;
 }
 
+/**
+ * MACD output returned from JavaScript.
+ */
 export class WasmMacdOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * MACD line value
-   */
-  readonly macd: number;
-  /**
-   * Signal line value
-   */
-  readonly signal: number;
-  /**
-   * Histogram value
-   */
-  readonly histogram: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Histogram value
+     */
+    readonly histogram: number;
+    /**
+     * MACD line value
+     */
+    readonly macd: number;
+    /**
+     * Signal line value
+     */
+    readonly signal: number;
 }
 
+/**
+ * Pivot Points output returned to JavaScript.
+ */
 export class WasmPivotPointsOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * First resistance level
-   */
-  readonly r1: number;
-  /**
-   * Second resistance level
-   */
-  readonly r2: number;
-  /**
-   * Third resistance level
-   */
-  readonly r3: number;
-  /**
-   * First support level
-   */
-  readonly s1: number;
-  /**
-   * Second support level
-   */
-  readonly s2: number;
-  /**
-   * Third support level
-   */
-  readonly s3: number;
-  /**
-   * The pivot point (central level)
-   */
-  readonly pivot: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * The pivot point (central level)
+     */
+    readonly pivot: number;
+    /**
+     * First resistance level
+     */
+    readonly r1: number;
+    /**
+     * Second resistance level
+     */
+    readonly r2: number;
+    /**
+     * Third resistance level
+     */
+    readonly r3: number;
+    /**
+     * First support level
+     */
+    readonly s1: number;
+    /**
+     * Second support level
+     */
+    readonly s2: number;
+    /**
+     * Third support level
+     */
+    readonly s3: number;
 }
 
+/**
+ * Stochastic output returned to JavaScript.
+ */
 export class WasmStochOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * %D line value (0-100) - signal line
-   */
-  readonly d: number;
-  /**
-   * %K line value (0-100)
-   */
-  readonly k: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * %D line value (0-100) - signal line
+     */
+    readonly d: number;
+    /**
+     * %K line value (0-100)
+     */
+    readonly k: number;
 }
 
+/**
+ * Stochastic RSI output returned to JavaScript.
+ */
 export class WasmStochRsiOutput {
-  private constructor();
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * %D line value (0-100) - signal line
-   */
-  readonly d: number;
-  /**
-   * %K line value (0-100)
-   */
-  readonly k: number;
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * %D line value (0-100) - signal line
+     */
+    readonly d: number;
+    /**
+     * %K line value (0-100)
+     */
+    readonly k: number;
 }
 
+/**
+ * Streaming WMA calculator for real-time O(1) updates.
+ */
 export class WmaStream {
-  free(): void;
-  [Symbol.dispose](): void;
-  /**
-   * Initialize with historical data. Returns array of WMA values.
-   */
-  init(data: Float64Array): Float64Array;
-  /**
-   * Create a new streaming WMA calculator.
-   */
-  constructor(period: number);
-  /**
-   * Process next value. Returns WMA or NaN if not ready.
-   */
-  next(value: number): number;
-  /**
-   * Reset the calculator to initial state.
-   */
-  reset(): void;
-  /**
-   * Check if calculator has enough data to produce values.
-   */
-  isReady(): boolean;
-  /**
-   * Get the period.
-   */
-  readonly period: number;
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Initialize with historical data. Returns array of WMA values.
+     */
+    init(data: Float64Array): Float64Array;
+    /**
+     * Check if calculator has enough data to produce values.
+     */
+    isReady(): boolean;
+    /**
+     * Create a new streaming WMA calculator.
+     */
+    constructor(period: number);
+    /**
+     * Process next value. Returns WMA or NaN if not ready.
+     */
+    next(value: number): number;
+    /**
+     * Reset the calculator to initial state.
+     */
+    reset(): void;
+    /**
+     * Get the period.
+     */
+    readonly period: number;
 }
 
 /**

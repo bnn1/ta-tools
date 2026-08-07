@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "ignoreDeprecations": "6.0",
     "declaration": true,
-    "declarationMap": true,
+    "declarationMap": false,
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "outDir": "./dist",
-    "rootDir": "./js"
+    "skipLibCheck": true
   },
   "include": ["js/**/*"],
   "exclude": ["node_modules", "dist", "pkg"]

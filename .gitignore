@@ -1,6 +1,5 @@
-target/
 node_modules/
-*.log
-.DS_Store
-Cargo.lock
-dist
+target/
+dist/
+*.node
+*.tsbuildinfo

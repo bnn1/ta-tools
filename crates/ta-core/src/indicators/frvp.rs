@@ -38,6 +38,22 @@ pub const DEFAULT_NUM_BINS: usize = 100;
 /// Value Area percentage (70% of total volume)
 const VALUE_AREA_PERCENT: f64 = 0.70;
 
+fn validate_frvp_candle(candle: &OHLCV) -> IndicatorResult<()> {
+    if !candle.high.is_finite() || !candle.low.is_finite() || !candle.volume.is_finite() {
+        return Err(IndicatorError::InvalidParameter(
+            "FRVP high, low, and volume values must be finite".to_string(),
+        ));
+    }
+
+    if candle.high < candle.low {
+        return Err(IndicatorError::InvalidParameter(
+            "FRVP high must be greater than or equal to low".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 // ============================================================================
 // Output Types
 // ============================================================================
@@ -169,6 +185,10 @@ impl Indicator<&[OHLCV], FrvpOutput> for Frvp {
                 required: 1,
                 provided: 0,
             });
+        }
+
+        for candle in data {
+            validate_frvp_candle(candle)?;
         }
 
         // Find the price range
@@ -448,6 +468,10 @@ impl FrvpStream {
 
 impl StreamingIndicator<OHLCV, FrvpOutput> for FrvpStream {
     fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<FrvpOutput>> {
+        for candle in data {
+            validate_frvp_candle(candle)?;
+        }
+
         self.candles = data.to_vec();
         self.initialized = !data.is_empty();
 
@@ -460,6 +484,10 @@ impl StreamingIndicator<OHLCV, FrvpOutput> for FrvpStream {
     }
 
     fn next(&mut self, candle: OHLCV) -> Option<FrvpOutput> {
+        if validate_frvp_candle(&candle).is_err() {
+            return None;
+        }
+
         self.candles.push(candle);
         self.initialized = true;
         self.recalculate().ok()
@@ -546,6 +574,36 @@ mod tests {
     }
 
     #[test]
+    fn test_frvp_rejects_non_finite_used_values() {
+        let frvp = Frvp::new(10).unwrap();
+
+        for candle in [
+            make_candle(f64::NAN, 100.0, 100.0, 1.0),
+            make_candle(110.0, f64::NAN, 100.0, 1.0),
+            make_candle(110.0, 100.0, 100.0, f64::NAN),
+        ] {
+            let result = frvp.calculate(&[candle]);
+            assert!(
+                matches!(result, Err(IndicatorError::InvalidParameter(ref message)) if message.contains("finite")),
+                "expected a finite-value validation error, got {result:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_frvp_rejects_inverted_price_range() {
+        let frvp = Frvp::new(10).unwrap();
+        let candle = OHLCV::new(0, 100.0, 99.0, 100.0, 100.0, 1.0);
+
+        let result = frvp.calculate(&[candle]);
+
+        assert!(
+            matches!(result, Err(IndicatorError::InvalidParameter(ref message)) if message.contains("high") && message.contains("low")),
+            "expected a high/low validation error, got {result:?}"
+        );
+    }
+
+    #[test]
     fn test_frvp_value_area() {
         let frvp = Frvp::with_value_area(20, 0.70).unwrap();
 
@@ -587,6 +645,37 @@ mod tests {
 
         let output = result.unwrap();
         assert!((output.total_volume - 4500.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_frvp_stream_reinitializes_and_resets() {
+        let first = make_candle(105.0, 100.0, 102.0, 1000.0);
+        let second = make_candle(110.0, 105.0, 108.0, 2000.0);
+        let frvp = Frvp::new(10).unwrap();
+        let mut stream = FrvpStream::new(10).unwrap();
+
+        assert!(!stream.is_ready());
+        assert_eq!(stream.candle_count(), 0);
+        assert!(stream.init(&[]).unwrap().is_empty());
+        assert!(!stream.is_ready());
+
+        let initialized = stream.init(&[first, second]).unwrap();
+        assert_eq!(initialized.len(), 1);
+        assert!(stream.is_ready());
+        assert_eq!(stream.candle_count(), 2);
+        assert_eq!(initialized[0], frvp.calculate(&[first, second]).unwrap());
+
+        let reinitialized = stream.init(&[second]).unwrap();
+        assert_eq!(reinitialized.len(), 1);
+        assert_eq!(stream.candle_count(), 1);
+        assert_eq!(reinitialized[0], frvp.calculate(&[second]).unwrap());
+
+        stream.reset();
+        assert!(!stream.is_ready());
+        assert_eq!(stream.candle_count(), 0);
+        assert!(stream.next(first).is_some());
+        assert!(stream.is_ready());
+        assert_eq!(stream.candle_count(), 1);
     }
 
     #[test]

@@ -1,269 +1,4 @@
-
-let imports = {};
-imports['__wbindgen_placeholder__'] = module.exports;
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
-}
-
-function dropObject(idx) {
-    if (idx < 132) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
-}
-
-let cachedDataViewMemory0 = null;
-function getDataViewMemory0() {
-    if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
-        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
-    }
-    return cachedDataViewMemory0;
-}
-
-let cachedFloat64ArrayMemory0 = null;
-function getFloat64ArrayMemory0() {
-    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
-        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
-    }
-    return cachedFloat64ArrayMemory0;
-}
-
-function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return decodeText(ptr, len);
-}
-
-let cachedUint8ArrayMemory0 = null;
-function getUint8ArrayMemory0() {
-    if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
-        cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
-    }
-    return cachedUint8ArrayMemory0;
-}
-
-function getObject(idx) { return heap[idx]; }
-
-function handleError(f, args) {
-    try {
-        return f.apply(this, args);
-    } catch (e) {
-        wasm.__wbindgen_export2(addHeapObject(e));
-    }
-}
-
-let heap = new Array(128).fill(undefined);
-heap.push(undefined, null, true, false);
-
-let heap_next = heap.length;
-
-function isLikeNone(x) {
-    return x === undefined || x === null;
-}
-
-function passArrayF64ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 8, 8) >>> 0;
-    getFloat64ArrayMemory0().set(arg, ptr / 8);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-
-function passStringToWasm0(arg, malloc, realloc) {
-    if (realloc === undefined) {
-        const buf = cachedTextEncoder.encode(arg);
-        const ptr = malloc(buf.length, 1) >>> 0;
-        getUint8ArrayMemory0().subarray(ptr, ptr + buf.length).set(buf);
-        WASM_VECTOR_LEN = buf.length;
-        return ptr;
-    }
-
-    let len = arg.length;
-    let ptr = malloc(len, 1) >>> 0;
-
-    const mem = getUint8ArrayMemory0();
-
-    let offset = 0;
-
-    for (; offset < len; offset++) {
-        const code = arg.charCodeAt(offset);
-        if (code > 0x7F) break;
-        mem[ptr + offset] = code;
-    }
-    if (offset !== len) {
-        if (offset !== 0) {
-            arg = arg.slice(offset);
-        }
-        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
-        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
-        const ret = cachedTextEncoder.encodeInto(arg, view);
-
-        offset += ret.written;
-        ptr = realloc(ptr, len, offset, 1) >>> 0;
-    }
-
-    WASM_VECTOR_LEN = offset;
-    return ptr;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
-
-let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
-cachedTextDecoder.decode();
-function decodeText(ptr, len) {
-    return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
-}
-
-const cachedTextEncoder = new TextEncoder();
-
-if (!('encodeInto' in cachedTextEncoder)) {
-    cachedTextEncoder.encodeInto = function (arg, view) {
-        const buf = cachedTextEncoder.encode(arg);
-        view.set(buf);
-        return {
-            read: arg.length,
-            written: buf.length
-        };
-    }
-}
-
-let WASM_VECTOR_LEN = 0;
-
-const AdxStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_adxstream_free(ptr >>> 0, 1));
-
-const AnchoredVwapStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_anchoredvwapstream_free(ptr >>> 0, 1));
-
-const AtrStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_atrstream_free(ptr >>> 0, 1));
-
-const BBandsStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_bbandsstream_free(ptr >>> 0, 1));
-
-const CvdOhlcvStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_cvdohlcvstream_free(ptr >>> 0, 1));
-
-const CvdStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_cvdstream_free(ptr >>> 0, 1));
-
-const EmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_emastream_free(ptr >>> 0, 1));
-
-const FrvpOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_frvpoutput_free(ptr >>> 0, 1));
-
-const FrvpStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_frvpstream_free(ptr >>> 0, 1));
-
-const HmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_hmastream_free(ptr >>> 0, 1));
-
-const IchimokuStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_ichimokustream_free(ptr >>> 0, 1));
-
-const LinRegStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_linregstream_free(ptr >>> 0, 1));
-
-const MacdStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_macdstream_free(ptr >>> 0, 1));
-
-const MfiStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_mfistream_free(ptr >>> 0, 1));
-
-const RollingVwapStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_rollingvwapstream_free(ptr >>> 0, 1));
-
-const RsiStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_rsistream_free(ptr >>> 0, 1));
-
-const SessionVwapStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_sessionvwapstream_free(ptr >>> 0, 1));
-
-const SmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_smastream_free(ptr >>> 0, 1));
-
-const StochFastStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_stochfaststream_free(ptr >>> 0, 1));
-
-const StochRsiStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_stochrsistream_free(ptr >>> 0, 1));
-
-const StochSlowStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_stochslowstream_free(ptr >>> 0, 1));
-
-const VolumeProfileRowFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_volumeprofilerow_free(ptr >>> 0, 1));
-
-const WasmAdxOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmadxoutput_free(ptr >>> 0, 1));
-
-const WasmBBandsOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmbbandsoutput_free(ptr >>> 0, 1));
-
-const WasmIchimokuOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmichimokuoutput_free(ptr >>> 0, 1));
-
-const WasmLinRegOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmlinregoutput_free(ptr >>> 0, 1));
-
-const WasmMacdOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmmacdoutput_free(ptr >>> 0, 1));
-
-const WasmPivotPointsOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmpivotpointsoutput_free(ptr >>> 0, 1));
-
-const WasmStochOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmstochoutput_free(ptr >>> 0, 1));
-
-const WasmStochRsiOutputFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmstochrsioutput_free(ptr >>> 0, 1));
-
-const WmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wmastream_free(ptr >>> 0, 1));
+/* @ts-self-types="./ta_core.d.ts" */
 
 /**
  * Streaming ADX calculator.
@@ -278,6 +13,14 @@ class AdxStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_adxstream_free(ptr, 0);
+    }
+    /**
+     * Get current values.
+     * @returns {WasmAdxOutput | undefined}
+     */
+    current() {
+        const ret = wasm.adxstream_current(this.__wbg_ptr);
+        return ret === 0 ? undefined : WasmAdxOutput.__wrap(ret);
     }
     /**
      * Initialize with historical data.
@@ -308,6 +51,14 @@ class AdxStream {
         }
     }
     /**
+     * Check if ready.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.adxstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming ADX calculator.
      * @param {number} period
      */
@@ -321,7 +72,7 @@ class AdxStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             AdxStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -340,12 +91,6 @@ class AdxStream {
         return ret === 0 ? undefined : WasmAdxOutput.__wrap(ret);
     }
     /**
-     * Reset the calculator.
-     */
-    reset() {
-        wasm.adxstream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
@@ -354,20 +99,10 @@ class AdxStream {
         return ret >>> 0;
     }
     /**
-     * Get current values.
-     * @returns {WasmAdxOutput | undefined}
+     * Reset the calculator.
      */
-    current() {
-        const ret = wasm.adxstream_current(this.__wbg_ptr);
-        return ret === 0 ? undefined : WasmAdxOutput.__wrap(ret);
-    }
-    /**
-     * Check if ready.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.adxstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.adxstream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) AdxStream.prototype[Symbol.dispose] = AdxStream.prototype.free;
@@ -378,7 +113,6 @@ exports.AdxStream = AdxStream;
  */
 class AnchoredVwapStream {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(AnchoredVwapStream.prototype);
         obj.__wbg_ptr = ptr;
         AnchoredVwapStreamFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -401,20 +135,50 @@ class AnchoredVwapStream {
         wasm.anchoredvwapstream_anchorNow(this.__wbg_ptr);
     }
     /**
-     * Set the anchor timestamp. VWAP will start accumulating from this point.
-     * @param {number} timestamp
+     * Get the anchor timestamp if set.
+     * @returns {number | undefined}
      */
-    setAnchor(timestamp) {
-        wasm.anchoredvwapstream_setAnchor(this.__wbg_ptr, timestamp);
+    anchorTimestamp() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.anchoredvwapstream_anchorTimestamp(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
-     * Create a new streaming Anchored VWAP calculator with a specific anchor timestamp.
-     * @param {number} anchor_timestamp
-     * @returns {AnchoredVwapStream}
+     * Get cumulative typical price × volume.
+     * @returns {number}
      */
-    static withAnchor(anchor_timestamp) {
-        const ret = wasm.anchoredvwapstream_withAnchor(anchor_timestamp);
-        return AnchoredVwapStream.__wrap(ret);
+    cumulativeTpVolume() {
+        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Get cumulative volume.
+     * @returns {number}
+     */
+    cumulativeVolume() {
+        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Get current VWAP value without consuming a new candle.
+     * @returns {number | undefined}
+     */
+    current() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.anchoredvwapstream_current(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
      * Initialize with historical OHLCV data.
@@ -458,35 +222,12 @@ class AnchoredVwapStream {
         }
     }
     /**
-     * Get the anchor timestamp if set.
-     * @returns {number | undefined}
+     * Check if calculator has been anchored and is producing values.
+     * @returns {boolean}
      */
-    anchorTimestamp() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.anchoredvwapstream_anchorTimestamp(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Get cumulative volume.
-     * @returns {number}
-     */
-    cumulativeVolume() {
-        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Get cumulative typical price × volume.
-     * @returns {number}
-     */
-    cumulativeTpVolume() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
-        return ret;
+    isReady() {
+        const ret = wasm.anchoredvwapstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
     }
     /**
      * Create a new streaming Anchored VWAP calculator.
@@ -494,7 +235,7 @@ class AnchoredVwapStream {
      */
     constructor() {
         const ret = wasm.anchoredvwapstream_new();
-        this.__wbg_ptr = ret >>> 0;
+        this.__wbg_ptr = ret;
         AnchoredVwapStreamFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -526,27 +267,20 @@ class AnchoredVwapStream {
         wasm.anchoredvwapstream_reset(this.__wbg_ptr);
     }
     /**
-     * Get current VWAP value without consuming a new candle.
-     * @returns {number | undefined}
+     * Set the anchor timestamp. VWAP will start accumulating from this point.
+     * @param {number} timestamp
      */
-    current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.anchoredvwapstream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+    setAnchor(timestamp) {
+        wasm.anchoredvwapstream_setAnchor(this.__wbg_ptr, timestamp);
     }
     /**
-     * Check if calculator has been anchored and is producing values.
-     * @returns {boolean}
+     * Create a new streaming Anchored VWAP calculator with a specific anchor timestamp.
+     * @param {number} anchor_timestamp
+     * @returns {AnchoredVwapStream}
      */
-    isReady() {
-        const ret = wasm.anchoredvwapstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    static withAnchor(anchor_timestamp) {
+        const ret = wasm.anchoredvwapstream_withAnchor(anchor_timestamp);
+        return AnchoredVwapStream.__wrap(ret);
     }
 }
 if (Symbol.dispose) AnchoredVwapStream.prototype[Symbol.dispose] = AnchoredVwapStream.prototype.free;
@@ -565,6 +299,14 @@ class AtrStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_atrstream_free(ptr, 0);
+    }
+    /**
+     * Get current ATR value without consuming a new bar.
+     * @returns {number}
+     */
+    current() {
+        const ret = wasm.atrstream_current(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Initialize with historical OHLC data.
@@ -600,6 +342,14 @@ class AtrStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.atrstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming ATR calculator.
      * @param {number} period
      */
@@ -613,7 +363,7 @@ class AtrStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             AtrStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -633,12 +383,6 @@ class AtrStream {
         return ret;
     }
     /**
-     * Reset the calculator to initial state.
-     */
-    reset() {
-        wasm.atrstream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
@@ -647,20 +391,10 @@ class AtrStream {
         return ret >>> 0;
     }
     /**
-     * Get current ATR value without consuming a new bar.
-     * @returns {number}
+     * Reset the calculator to initial state.
      */
-    current() {
-        const ret = wasm.atrstream_current(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.atrstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.atrstream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) AtrStream.prototype[Symbol.dispose] = AtrStream.prototype.free;
@@ -703,6 +437,14 @@ class BBandsStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.bbandsstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Get the K multiplier.
      * @returns {number}
      */
@@ -725,7 +467,7 @@ class BBandsStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             BBandsStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -742,12 +484,6 @@ class BBandsStream {
         return ret === 0 ? undefined : WasmBBandsOutput.__wrap(ret);
     }
     /**
-     * Reset the calculator to initial state.
-     */
-    reset() {
-        wasm.bbandsstream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
@@ -756,12 +492,10 @@ class BBandsStream {
         return ret >>> 0;
     }
     /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
+     * Reset the calculator to initial state.
      */
-    isReady() {
-        const ret = wasm.bbandsstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.bbandsstream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) BBandsStream.prototype[Symbol.dispose] = BBandsStream.prototype.free;
@@ -780,6 +514,21 @@ class CvdOhlcvStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_cvdohlcvstream_free(ptr, 0);
+    }
+    /**
+     * Get current CVD value without consuming a new bar.
+     * @returns {number | undefined}
+     */
+    current() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.cvdohlcvstream_current(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
      * Initialize with historical OHLCV data.
@@ -818,11 +567,19 @@ class CvdOhlcvStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.cvdohlcvstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming CVD calculator for OHLCV data.
      */
     constructor() {
         const ret = wasm.cvdohlcvstream_new();
-        this.__wbg_ptr = ret >>> 0;
+        this.__wbg_ptr = ret;
         CvdOhlcvStreamFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -852,29 +609,6 @@ class CvdOhlcvStream {
     reset() {
         wasm.cvdohlcvstream_reset(this.__wbg_ptr);
     }
-    /**
-     * Get current CVD value without consuming a new bar.
-     * @returns {number | undefined}
-     */
-    current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.cvdohlcvstream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.cvdohlcvstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
-    }
 }
 if (Symbol.dispose) CvdOhlcvStream.prototype[Symbol.dispose] = CvdOhlcvStream.prototype.free;
 exports.CvdOhlcvStream = CvdOhlcvStream;
@@ -892,6 +626,21 @@ class CvdStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_cvdstream_free(ptr, 0);
+    }
+    /**
+     * Get current CVD value without consuming a new delta.
+     * @returns {number | undefined}
+     */
+    current() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.cvdstream_current(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
      * Initialize with historical delta values.
@@ -920,11 +669,19 @@ class CvdStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.cvdstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming CVD calculator.
      */
     constructor() {
-        const ret = wasm.cvdohlcvstream_new();
-        this.__wbg_ptr = ret >>> 0;
+        const ret = wasm.cvdstream_new();
+        this.__wbg_ptr = ret;
         CvdStreamFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -948,30 +705,7 @@ class CvdStream {
      * Reset the calculator to initial state.
      */
     reset() {
-        wasm.cvdohlcvstream_reset(this.__wbg_ptr);
-    }
-    /**
-     * Get current CVD value without consuming a new delta.
-     * @returns {number | undefined}
-     */
-    current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.cvdohlcvstream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.cvdohlcvstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+        wasm.cvdstream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) CvdStream.prototype[Symbol.dispose] = CvdStream.prototype.free;
@@ -992,11 +726,11 @@ class EmaStream {
         wasm.__wbg_emastream_free(ptr, 0);
     }
     /**
-     * Get the smoothing multiplier.
+     * Get current EMA value without consuming a new value.
      * @returns {number}
      */
-    get multiplier() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+    current() {
+        const ret = wasm.emastream_current(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -1025,6 +759,22 @@ class EmaStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.emastream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Get the smoothing multiplier.
+     * @returns {number}
+     */
+    get multiplier() {
+        const ret = wasm.emastream_multiplier(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Create a new streaming EMA calculator.
      * @param {number} period
      */
@@ -1038,7 +788,7 @@ class EmaStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             EmaStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1055,34 +805,18 @@ class EmaStream {
         return ret;
     }
     /**
-     * Reset the calculator to initial state.
-     */
-    reset() {
-        wasm.emastream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
     get period() {
-        const ret = wasm.bbandsstream_period(this.__wbg_ptr);
+        const ret = wasm.emastream_period(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Get current EMA value without consuming a new value.
-     * @returns {number}
+     * Reset the calculator to initial state.
      */
-    current() {
-        const ret = wasm.emastream_current(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.emastream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.emastream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) EmaStream.prototype[Symbol.dispose] = EmaStream.prototype.free;
@@ -1093,7 +827,6 @@ exports.EmaStream = EmaStream;
  */
 class FrvpOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(FrvpOutput.prototype);
         obj.__wbg_ptr = ptr;
         FrvpOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -1108,6 +841,22 @@ class FrvpOutput {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_frvpoutput_free(ptr, 0);
+    }
+    /**
+     * Get histogram as a JavaScript object with arrays
+     * @returns {any}
+     */
+    get histogram() {
+        const ret = wasm.frvpoutput_histogram(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Point of Control - price level with highest volume
+     * @returns {number}
+     */
+    get poc() {
+        const ret = wasm.frvpoutput_poc(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Volume at POC
@@ -1126,27 +875,19 @@ class FrvpOutput {
         return ret;
     }
     /**
+     * Lowest price in the range
+     * @returns {number}
+     */
+    get rangeLow() {
+        const ret = wasm.frvpoutput_rangeLow(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Total volume in the range
      * @returns {number}
      */
     get totalVolume() {
-        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Volume within the Value Area
-     * @returns {number}
-     */
-    get valueAreaVolume() {
-        const ret = wasm.frvpoutput_valueAreaVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Point of Control - price level with highest volume
-     * @returns {number}
-     */
-    get poc() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+        const ret = wasm.frvpoutput_totalVolume(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -1162,23 +903,15 @@ class FrvpOutput {
      * @returns {number}
      */
     get val() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
+        const ret = wasm.frvpoutput_val(this.__wbg_ptr);
         return ret;
     }
     /**
-     * Get histogram as a JavaScript object with arrays
-     * @returns {any}
-     */
-    get histogram() {
-        const ret = wasm.frvpoutput_histogram(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Lowest price in the range
+     * Volume within the Value Area
      * @returns {number}
      */
-    get rangeLow() {
-        const ret = wasm.frvpoutput_rangeLow(this.__wbg_ptr);
+    get valueAreaVolume() {
+        const ret = wasm.frvpoutput_valueAreaVolume(this.__wbg_ptr);
         return ret;
     }
 }
@@ -1206,6 +939,12 @@ class FrvpStream {
     get candleCount() {
         const ret = wasm.frvpstream_candleCount(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+     * Clear all candles from the buffer.
+     */
+    clear() {
+        wasm.frvpstream_clear(this.__wbg_ptr);
     }
     /**
      * Initialize with historical OHLCV data.
@@ -1245,6 +984,14 @@ class FrvpStream {
         }
     }
     /**
+     * Check if calculator has been initialized with data.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.frvpstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming FRVP calculator.
      *
      * @param numBins - Number of price bins (rows) in histogram
@@ -1262,7 +1009,7 @@ class FrvpStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             FrvpStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1288,32 +1035,18 @@ class FrvpStream {
         return ret === 0 ? undefined : FrvpOutput.__wrap(ret);
     }
     /**
-     * Clear all candles from the buffer.
-     */
-    clear() {
-        wasm.frvpstream_clear(this.__wbg_ptr);
-    }
-    /**
-     * Reset the calculator and clear all candles.
-     */
-    reset() {
-        wasm.frvpstream_clear(this.__wbg_ptr);
-    }
-    /**
-     * Check if calculator has been initialized with data.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.frvpstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
      * Get the number of price bins.
      * @returns {number}
      */
     get numBins() {
         const ret = wasm.frvpstream_numBins(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+     * Reset the calculator and clear all candles.
+     */
+    reset() {
+        wasm.frvpstream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) FrvpStream.prototype[Symbol.dispose] = FrvpStream.prototype.free;
@@ -1342,14 +1075,6 @@ class HmaStream {
         return ret >>> 0;
     }
     /**
-     * Get the sqrt period.
-     * @returns {number}
-     */
-    get sqrtPeriod() {
-        const ret = wasm.hmastream_sqrtPeriod(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
      * Initialize with historical data.
      * @param {Float64Array} data
      * @returns {Float64Array}
@@ -1375,6 +1100,14 @@ class HmaStream {
         }
     }
     /**
+     * Check if ready.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.hmastream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming HMA calculator.
      * @param {number} period
      */
@@ -1388,7 +1121,7 @@ class HmaStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             HmaStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1412,12 +1145,6 @@ class HmaStream {
         }
     }
     /**
-     * Reset the calculator.
-     */
-    reset() {
-        wasm.hmastream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
@@ -1426,12 +1153,18 @@ class HmaStream {
         return ret >>> 0;
     }
     /**
-     * Check if ready.
-     * @returns {boolean}
+     * Reset the calculator.
      */
-    isReady() {
-        const ret = wasm.hmastream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.hmastream_reset(this.__wbg_ptr);
+    }
+    /**
+     * Get the sqrt period.
+     * @returns {number}
+     */
+    get sqrtPeriod() {
+        const ret = wasm.hmastream_sqrtPeriod(this.__wbg_ptr);
+        return ret >>> 0;
     }
 }
 if (Symbol.dispose) HmaStream.prototype[Symbol.dispose] = HmaStream.prototype.free;
@@ -1480,27 +1213,19 @@ class IchimokuStream {
         }
     }
     /**
+     * Check if ready.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.ichimokustream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Get the Kijun-sen period.
      * @returns {number}
      */
     get kijunPeriod() {
         const ret = wasm.ichimokustream_kijunPeriod(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Get the Tenkan-sen period.
-     * @returns {number}
-     */
-    get tenkanPeriod() {
-        const ret = wasm.ichimokustream_tenkanPeriod(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Get the Senkou Span B period.
-     * @returns {number}
-     */
-    get senkouBPeriod() {
-        const ret = wasm.ichimokustream_senkouBPeriod(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
@@ -1512,14 +1237,14 @@ class IchimokuStream {
     constructor(tenkan_period, kijun_period, senkou_b_period) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.ichimokustream_new(retptr, isLikeNone(tenkan_period) ? 0x100000001 : (tenkan_period) >>> 0, isLikeNone(kijun_period) ? 0x100000001 : (kijun_period) >>> 0, isLikeNone(senkou_b_period) ? 0x100000001 : (senkou_b_period) >>> 0);
+            wasm.ichimokustream_new(retptr, isLikeNone(tenkan_period) ? Number.MAX_SAFE_INTEGER : (tenkan_period) >>> 0, isLikeNone(kijun_period) ? Number.MAX_SAFE_INTEGER : (kijun_period) >>> 0, isLikeNone(senkou_b_period) ? Number.MAX_SAFE_INTEGER : (senkou_b_period) >>> 0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             IchimokuStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1544,12 +1269,20 @@ class IchimokuStream {
         wasm.ichimokustream_reset(this.__wbg_ptr);
     }
     /**
-     * Check if ready.
-     * @returns {boolean}
+     * Get the Senkou Span B period.
+     * @returns {number}
      */
-    isReady() {
-        const ret = wasm.ichimokustream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    get senkouBPeriod() {
+        const ret = wasm.ichimokustream_senkouBPeriod(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Get the Tenkan-sen period.
+     * @returns {number}
+     */
+    get tenkanPeriod() {
+        const ret = wasm.ichimokustream_tenkanPeriod(this.__wbg_ptr);
+        return ret >>> 0;
     }
 }
 if (Symbol.dispose) IchimokuStream.prototype[Symbol.dispose] = IchimokuStream.prototype.free;
@@ -1568,14 +1301,6 @@ class LinRegStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_linregstream_free(ptr, 0);
-    }
-    /**
-     * Get the number of standard deviations.
-     * @returns {number}
-     */
-    get numStdDev() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
-        return ret;
     }
     /**
      * Initialize with historical data.
@@ -1600,6 +1325,14 @@ class LinRegStream {
         }
     }
     /**
+     * Check if ready.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.linregstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming Linear Regression calculator.
      * @param {number} period
      * @param {number | null} [num_std_dev]
@@ -1614,7 +1347,7 @@ class LinRegStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             LinRegStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1631,26 +1364,26 @@ class LinRegStream {
         return ret === 0 ? undefined : WasmLinRegOutput.__wrap(ret);
     }
     /**
-     * Reset the calculator.
+     * Get the number of standard deviations.
+     * @returns {number}
      */
-    reset() {
-        wasm.linregstream_reset(this.__wbg_ptr);
+    get numStdDev() {
+        const ret = wasm.linregstream_numStdDev(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Get the period.
      * @returns {number}
      */
     get period() {
-        const ret = wasm.frvpstream_numBins(this.__wbg_ptr);
+        const ret = wasm.linregstream_period(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Check if ready.
-     * @returns {boolean}
+     * Reset the calculator.
      */
-    isReady() {
-        const ret = wasm.linregstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.linregstream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) LinRegStream.prototype[Symbol.dispose] = LinRegStream.prototype.free;
@@ -1679,14 +1412,6 @@ class MacdStream {
         return ret >>> 0;
     }
     /**
-     * Get the slow period.
-     * @returns {number}
-     */
-    get slowPeriod() {
-        const ret = wasm.hmastream_halfPeriod(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
      * Initialize with historical data. Returns array of MACD outputs as JS object.
      * @param {Float64Array} data
      * @returns {any}
@@ -1709,12 +1434,12 @@ class MacdStream {
         }
     }
     /**
-     * Get the signal period.
-     * @returns {number}
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
      */
-    get signalPeriod() {
-        const ret = wasm.hmastream_sqrtPeriod(this.__wbg_ptr);
-        return ret >>> 0;
+    isReady() {
+        const ret = wasm.macdstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
     }
     /**
      * Create a new streaming MACD calculator.
@@ -1732,7 +1457,7 @@ class MacdStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             MacdStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1755,12 +1480,20 @@ class MacdStream {
         wasm.macdstream_reset(this.__wbg_ptr);
     }
     /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
+     * Get the signal period.
+     * @returns {number}
      */
-    isReady() {
-        const ret = wasm.macdstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    get signalPeriod() {
+        const ret = wasm.macdstream_signalPeriod(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Get the slow period.
+     * @returns {number}
+     */
+    get slowPeriod() {
+        const ret = wasm.macdstream_slowPeriod(this.__wbg_ptr);
+        return ret >>> 0;
     }
 }
 if (Symbol.dispose) MacdStream.prototype[Symbol.dispose] = MacdStream.prototype.free;
@@ -1779,6 +1512,21 @@ class MfiStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_mfistream_free(ptr, 0);
+    }
+    /**
+     * Get current MFI value.
+     * @returns {number | undefined}
+     */
+    current() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.mfistream_current(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
      * Initialize with historical OHLCV data.
@@ -1815,6 +1563,14 @@ class MfiStream {
         }
     }
     /**
+     * Check if ready.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.mfistream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming MFI calculator.
      * @param {number} period
      */
@@ -1828,7 +1584,7 @@ class MfiStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             MfiStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1855,12 +1611,6 @@ class MfiStream {
         }
     }
     /**
-     * Reset the calculator.
-     */
-    reset() {
-        wasm.mfistream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
@@ -1869,27 +1619,10 @@ class MfiStream {
         return ret >>> 0;
     }
     /**
-     * Get current MFI value.
-     * @returns {number | undefined}
+     * Reset the calculator.
      */
-    current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.mfistream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Check if ready.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.mfistream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.mfistream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) MfiStream.prototype[Symbol.dispose] = MfiStream.prototype.free;
@@ -1908,6 +1641,14 @@ class RollingVwapStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_rollingvwapstream_free(ptr, 0);
+    }
+    /**
+     * Get current VWAP value without consuming a new candle.
+     * @returns {number}
+     */
+    current() {
+        const ret = wasm.rollingvwapstream_current(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Initialize with historical OHLCV data.
@@ -1951,6 +1692,14 @@ class RollingVwapStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.rollingvwapstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming Rolling VWAP calculator.
      * @param {number} period
      */
@@ -1964,7 +1713,7 @@ class RollingVwapStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             RollingVwapStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -1986,12 +1735,6 @@ class RollingVwapStream {
         return ret;
     }
     /**
-     * Reset the calculator to initial state.
-     */
-    reset() {
-        wasm.rollingvwapstream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
@@ -2000,20 +1743,10 @@ class RollingVwapStream {
         return ret >>> 0;
     }
     /**
-     * Get current VWAP value without consuming a new candle.
-     * @returns {number}
+     * Reset the calculator to initial state.
      */
-    current() {
-        const ret = wasm.rollingvwapstream_current(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.rollingvwapstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.rollingvwapstream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) RollingVwapStream.prototype[Symbol.dispose] = RollingVwapStream.prototype.free;
@@ -2032,6 +1765,14 @@ class RsiStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_rsistream_free(ptr, 0);
+    }
+    /**
+     * Get current RSI value without consuming a new value.
+     * @returns {number}
+     */
+    current() {
+        const ret = wasm.rsistream_current(this.__wbg_ptr);
+        return ret;
     }
     /**
      * Initialize with historical data. Returns array of RSI values.
@@ -2059,6 +1800,14 @@ class RsiStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.rsistream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming RSI calculator.
      * @param {number} period
      */
@@ -2072,7 +1821,7 @@ class RsiStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             RsiStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -2089,12 +1838,6 @@ class RsiStream {
         return ret;
     }
     /**
-     * Reset the calculator to initial state.
-     */
-    reset() {
-        wasm.rsistream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
@@ -2103,20 +1846,10 @@ class RsiStream {
         return ret >>> 0;
     }
     /**
-     * Get current RSI value without consuming a new value.
-     * @returns {number}
+     * Reset the calculator to initial state.
      */
-    current() {
-        const ret = wasm.rsistream_current(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.rsistream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.rsistream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) RsiStream.prototype[Symbol.dispose] = RsiStream.prototype.free;
@@ -2135,6 +1868,37 @@ class SessionVwapStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_sessionvwapstream_free(ptr, 0);
+    }
+    /**
+     * Get cumulative typical price × volume.
+     * @returns {number}
+     */
+    cumulativeTpVolume() {
+        const ret = wasm.sessionvwapstream_cumulativeTpVolume(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Get cumulative volume.
+     * @returns {number}
+     */
+    cumulativeVolume() {
+        const ret = wasm.sessionvwapstream_cumulativeVolume(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Get current VWAP value without consuming a new candle.
+     * @returns {number | undefined}
+     */
+    current() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.sessionvwapstream_current(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
      * Initialize with historical OHLCV data.
@@ -2178,27 +1942,19 @@ class SessionVwapStream {
         }
     }
     /**
-     * Get cumulative volume.
-     * @returns {number}
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
      */
-    cumulativeVolume() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Get cumulative typical price × volume.
-     * @returns {number}
-     */
-    cumulativeTpVolume() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
-        return ret;
+    isReady() {
+        const ret = wasm.sessionvwapstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
     }
     /**
      * Create a new streaming Session VWAP calculator.
      */
     constructor() {
         const ret = wasm.sessionvwapstream_new();
-        this.__wbg_ptr = ret >>> 0;
+        this.__wbg_ptr = ret;
         SessionVwapStreamFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -2228,29 +1984,6 @@ class SessionVwapStream {
      */
     reset() {
         wasm.sessionvwapstream_reset(this.__wbg_ptr);
-    }
-    /**
-     * Get current VWAP value without consuming a new candle.
-     * @returns {number | undefined}
-     */
-    current() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.sessionvwapstream_current(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.sessionvwapstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
     }
 }
 if (Symbol.dispose) SessionVwapStream.prototype[Symbol.dispose] = SessionVwapStream.prototype.free;
@@ -2296,6 +2029,14 @@ class SmaStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.smastream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming SMA calculator.
      * @param {number} period
      */
@@ -2309,7 +2050,7 @@ class SmaStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             SmaStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -2326,26 +2067,18 @@ class SmaStream {
         return ret;
     }
     /**
-     * Reset the calculator to initial state.
-     */
-    reset() {
-        wasm.smastream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
     get period() {
-        const ret = wasm.frvpstream_numBins(this.__wbg_ptr);
+        const ret = wasm.smastream_period(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
+     * Reset the calculator to initial state.
      */
-    isReady() {
-        const ret = wasm.linregstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.smastream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) SmaStream.prototype[Symbol.dispose] = SmaStream.prototype.free;
@@ -2364,6 +2097,14 @@ class StochFastStream {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stochfaststream_free(ptr, 0);
+    }
+    /**
+     * Get the D period.
+     * @returns {number}
+     */
+    get dPeriod() {
+        const ret = wasm.stochfaststream_dPeriod(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
      * Initialize with historical data. Takes parallel arrays of highs, lows, closes.
@@ -2395,6 +2136,22 @@ class StochFastStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.stochfaststream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Get the K period.
+     * @returns {number}
+     */
+    get kPeriod() {
+        const ret = wasm.stochfaststream_kPeriod(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * Create a new streaming Fast Stochastic calculator.
      * @param {number} k_period
      * @param {number} d_period
@@ -2409,7 +2166,7 @@ class StochFastStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             StochFastStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -2434,30 +2191,6 @@ class StochFastStream {
     reset() {
         wasm.stochfaststream_reset(this.__wbg_ptr);
     }
-    /**
-     * Get the D period.
-     * @returns {number}
-     */
-    get dPeriod() {
-        const ret = wasm.stochfaststream_dPeriod(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.stochfaststream_isReady(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * Get the K period.
-     * @returns {number}
-     */
-    get kPeriod() {
-        const ret = wasm.stochfaststream_kPeriod(this.__wbg_ptr);
-        return ret >>> 0;
-    }
 }
 if (Symbol.dispose) StochFastStream.prototype[Symbol.dispose] = StochFastStream.prototype.free;
 exports.StochFastStream = StochFastStream;
@@ -2477,11 +2210,11 @@ class StochRsiStream {
         wasm.__wbg_stochrsistream_free(ptr, 0);
     }
     /**
-     * Get the RSI period.
+     * Get the D period.
      * @returns {number}
      */
-    get rsiPeriod() {
-        const ret = wasm.stochrsistream_rsiPeriod(this.__wbg_ptr);
+    get dPeriod() {
+        const ret = wasm.stochrsistream_dPeriod(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
@@ -2508,11 +2241,19 @@ class StochRsiStream {
         }
     }
     /**
-     * Get the stochastic lookback period.
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.stochrsistream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Get the K smoothing period.
      * @returns {number}
      */
-    get stochPeriod() {
-        const ret = wasm.stochrsistream_stochPeriod(this.__wbg_ptr);
+    get kSmooth() {
+        const ret = wasm.stochrsistream_kSmooth(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
@@ -2532,7 +2273,7 @@ class StochRsiStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             StochRsiStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -2555,27 +2296,19 @@ class StochRsiStream {
         wasm.stochrsistream_reset(this.__wbg_ptr);
     }
     /**
-     * Get the D period.
+     * Get the RSI period.
      * @returns {number}
      */
-    get dPeriod() {
-        const ret = wasm.stochrsistream_dPeriod(this.__wbg_ptr);
+    get rsiPeriod() {
+        const ret = wasm.stochrsistream_rsiPeriod(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.stochrsistream_isReady(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * Get the K smoothing period.
+     * Get the stochastic lookback period.
      * @returns {number}
      */
-    get kSmooth() {
-        const ret = wasm.stochrsistream_kSmooth(this.__wbg_ptr);
+    get stochPeriod() {
+        const ret = wasm.stochrsistream_stochPeriod(this.__wbg_ptr);
         return ret >>> 0;
     }
 }
@@ -2597,6 +2330,14 @@ class StochSlowStream {
         wasm.__wbg_stochslowstream_free(ptr, 0);
     }
     /**
+     * Get the D period.
+     * @returns {number}
+     */
+    get dPeriod() {
+        const ret = wasm.stochslowstream_dPeriod(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * Initialize with historical data. Takes parallel arrays of highs, lows, closes.
      * Returns array of Stochastic outputs as JS object with k and d arrays.
      * @param {Float64Array} highs
@@ -2613,7 +2354,7 @@ class StochSlowStream {
             const len1 = WASM_VECTOR_LEN;
             const ptr2 = passArrayF64ToWasm0(closes, wasm.__wbindgen_export3);
             const len2 = WASM_VECTOR_LEN;
-            wasm.stochfaststream_init(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+            wasm.stochslowstream_init(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -2624,6 +2365,22 @@ class StochSlowStream {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.stochslowstream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Get the K period.
+     * @returns {number}
+     */
+    get kPeriod() {
+        const ret = wasm.stochslowstream_kPeriod(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
      * Create a new streaming Slow Stochastic calculator.
@@ -2641,7 +2398,7 @@ class StochSlowStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             StochSlowStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -2657,45 +2414,21 @@ class StochSlowStream {
      * @returns {WasmStochOutput | undefined}
      */
     next(high, low, close) {
-        const ret = wasm.stochfaststream_next(this.__wbg_ptr, high, low, close);
+        const ret = wasm.stochslowstream_next(this.__wbg_ptr, high, low, close);
         return ret === 0 ? undefined : WasmStochOutput.__wrap(ret);
     }
     /**
      * Reset the calculator to initial state.
      */
     reset() {
-        wasm.stochfaststream_reset(this.__wbg_ptr);
+        wasm.stochslowstream_reset(this.__wbg_ptr);
     }
     /**
      * Get the slowing period.
      * @returns {number}
      */
     get slowing() {
-        const ret = wasm.adxstream_period(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Get the D period.
-     * @returns {number}
-     */
-    get dPeriod() {
-        const ret = wasm.stochfaststream_dPeriod(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
-     */
-    isReady() {
-        const ret = wasm.stochfaststream_isReady(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * Get the K period.
-     * @returns {number}
-     */
-    get kPeriod() {
-        const ret = wasm.stochfaststream_kPeriod(this.__wbg_ptr);
+        const ret = wasm.stochslowstream_slowing(this.__wbg_ptr);
         return ret >>> 0;
     }
 }
@@ -2717,19 +2450,19 @@ class VolumeProfileRow {
         wasm.__wbg_volumeprofilerow_free(ptr, 0);
     }
     /**
-     * Lower bound of the price bin
-     * @returns {number}
-     */
-    get low() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
      * Upper bound of the price bin
      * @returns {number}
      */
     get high() {
-        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
+        const ret = wasm.volumeprofilerow_high(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Lower bound of the price bin
+     * @returns {number}
+     */
+    get low() {
+        const ret = wasm.volumeprofilerow_low(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2737,7 +2470,7 @@ class VolumeProfileRow {
      * @returns {number}
      */
     get price() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+        const ret = wasm.volumeprofilerow_price(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2745,7 +2478,7 @@ class VolumeProfileRow {
      * @returns {number}
      */
     get volume() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
+        const ret = wasm.volumeprofilerow_volume(this.__wbg_ptr);
         return ret;
     }
 }
@@ -2757,7 +2490,6 @@ exports.VolumeProfileRow = VolumeProfileRow;
  */
 class WasmAdxOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmAdxOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmAdxOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -2778,15 +2510,7 @@ class WasmAdxOutput {
      * @returns {number}
      */
     get adx() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * +DI value (0-100)
-     * @returns {number}
-     */
-    get plusDi() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
+        const ret = wasm.wasmadxoutput_adx(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2794,7 +2518,15 @@ class WasmAdxOutput {
      * @returns {number}
      */
     get minusDi() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
+        const ret = wasm.wasmadxoutput_minusDi(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * +DI value (0-100)
+     * @returns {number}
+     */
+    get plusDi() {
+        const ret = wasm.wasmadxoutput_plusDi(this.__wbg_ptr);
         return ret;
     }
 }
@@ -2806,7 +2538,6 @@ exports.WasmAdxOutput = WasmAdxOutput;
  */
 class WasmBBandsOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmBBandsOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmBBandsOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -2823,19 +2554,19 @@ class WasmBBandsOutput {
         wasm.__wbg_wasmbbandsoutput_free(ptr, 0);
     }
     /**
+     * Bandwidth value
+     * @returns {number}
+     */
+    get bandwidth() {
+        const ret = wasm.wasmbbandsoutput_bandwidth(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Lower band value
      * @returns {number}
      */
     get lower() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Upper band value
-     * @returns {number}
-     */
-    get upper() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+        const ret = wasm.wasmbbandsoutput_lower(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2843,15 +2574,7 @@ class WasmBBandsOutput {
      * @returns {number}
      */
     get middle() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Bandwidth value
-     * @returns {number}
-     */
-    get bandwidth() {
-        const ret = wasm.frvpoutput_pocVolume(this.__wbg_ptr);
+        const ret = wasm.wasmbbandsoutput_middle(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2859,7 +2582,15 @@ class WasmBBandsOutput {
      * @returns {number}
      */
     get percentB() {
-        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
+        const ret = wasm.wasmbbandsoutput_percentB(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Upper band value
+     * @returns {number}
+     */
+    get upper() {
+        const ret = wasm.wasmbbandsoutput_upper(this.__wbg_ptr);
         return ret;
     }
 }
@@ -2871,7 +2602,6 @@ exports.WasmBBandsOutput = WasmBBandsOutput;
  */
 class WasmIchimokuOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmIchimokuOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmIchimokuOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -2888,35 +2618,11 @@ class WasmIchimokuOutput {
         wasm.__wbg_wasmichimokuoutput_free(ptr, 0);
     }
     /**
-     * Tenkan-sen (Conversion Line)
-     * @returns {number}
-     */
-    get tenkanSen() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
-        return ret;
-    }
-    /**
      * Chikou Span (Lagging Span)
      * @returns {number}
      */
     get chikouSpan() {
-        const ret = wasm.frvpoutput_pocVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Senkou Span A (Leading Span A)
-     * @returns {number}
-     */
-    get senkouSpanA() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Senkou Span B (Leading Span B)
-     * @returns {number}
-     */
-    get senkouSpanB() {
-        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
+        const ret = wasm.wasmichimokuoutput_chikouSpan(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2924,7 +2630,31 @@ class WasmIchimokuOutput {
      * @returns {number}
      */
     get kijunSen() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
+        const ret = wasm.wasmichimokuoutput_kijunSen(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Senkou Span A (Leading Span A)
+     * @returns {number}
+     */
+    get senkouSpanA() {
+        const ret = wasm.wasmichimokuoutput_senkouSpanA(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Senkou Span B (Leading Span B)
+     * @returns {number}
+     */
+    get senkouSpanB() {
+        const ret = wasm.wasmichimokuoutput_senkouSpanB(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Tenkan-sen (Conversion Line)
+     * @returns {number}
+     */
+    get tenkanSen() {
+        const ret = wasm.wasmichimokuoutput_tenkanSen(this.__wbg_ptr);
         return ret;
     }
 }
@@ -2936,7 +2666,6 @@ exports.WasmIchimokuOutput = WasmIchimokuOutput;
  */
 class WasmLinRegOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmLinRegOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmLinRegOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -2953,43 +2682,19 @@ class WasmLinRegOutput {
         wasm.__wbg_wasmlinregoutput_free(ptr, 0);
     }
     /**
-     * Pearson's R (-1 to 1)
-     * @returns {number}
-     */
-    get r() {
-        const ret = wasm.frvpoutput_pocVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
      * Lower channel
      * @returns {number}
      */
     get lower() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
+        const ret = wasm.wasmlinregoutput_lower(this.__wbg_ptr);
         return ret;
     }
     /**
-     * Slope
+     * Pearson's R (-1 to 1)
      * @returns {number}
      */
-    get slope() {
-        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Upper channel
-     * @returns {number}
-     */
-    get upper() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Regression value
-     * @returns {number}
-     */
-    get value() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+    get r() {
+        const ret = wasm.wasmlinregoutput_r(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2997,7 +2702,31 @@ class WasmLinRegOutput {
      * @returns {number}
      */
     get rSquared() {
-        const ret = wasm.frvpoutput_valueAreaVolume(this.__wbg_ptr);
+        const ret = wasm.wasmlinregoutput_rSquared(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Slope
+     * @returns {number}
+     */
+    get slope() {
+        const ret = wasm.wasmlinregoutput_slope(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Upper channel
+     * @returns {number}
+     */
+    get upper() {
+        const ret = wasm.wasmlinregoutput_upper(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Regression value
+     * @returns {number}
+     */
+    get value() {
+        const ret = wasm.wasmlinregoutput_value(this.__wbg_ptr);
         return ret;
     }
 }
@@ -3009,7 +2738,6 @@ exports.WasmLinRegOutput = WasmLinRegOutput;
  */
 class WasmMacdOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmMacdOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmMacdOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -3026,11 +2754,19 @@ class WasmMacdOutput {
         wasm.__wbg_wasmmacdoutput_free(ptr, 0);
     }
     /**
+     * Histogram value
+     * @returns {number}
+     */
+    get histogram() {
+        const ret = wasm.wasmmacdoutput_histogram(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * MACD line value
      * @returns {number}
      */
     get macd() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+        const ret = wasm.wasmmacdoutput_macd(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3038,15 +2774,7 @@ class WasmMacdOutput {
      * @returns {number}
      */
     get signal() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Histogram value
-     * @returns {number}
-     */
-    get histogram() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
+        const ret = wasm.wasmmacdoutput_signal(this.__wbg_ptr);
         return ret;
     }
 }
@@ -3058,7 +2786,6 @@ exports.WasmMacdOutput = WasmMacdOutput;
  */
 class WasmPivotPointsOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmPivotPointsOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmPivotPointsOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -3075,11 +2802,19 @@ class WasmPivotPointsOutput {
         wasm.__wbg_wasmpivotpointsoutput_free(ptr, 0);
     }
     /**
+     * The pivot point (central level)
+     * @returns {number}
+     */
+    get pivot() {
+        const ret = wasm.wasmpivotpointsoutput_pivot(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * First resistance level
      * @returns {number}
      */
     get r1() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
+        const ret = wasm.wasmpivotpointsoutput_r1(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3087,7 +2822,7 @@ class WasmPivotPointsOutput {
      * @returns {number}
      */
     get r2() {
-        const ret = wasm.anchoredvwapstream_cumulativeTpVolume(this.__wbg_ptr);
+        const ret = wasm.wasmpivotpointsoutput_r2(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3095,7 +2830,7 @@ class WasmPivotPointsOutput {
      * @returns {number}
      */
     get r3() {
-        const ret = wasm.anchoredvwapstream_cumulativeVolume(this.__wbg_ptr);
+        const ret = wasm.wasmpivotpointsoutput_r3(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3103,7 +2838,7 @@ class WasmPivotPointsOutput {
      * @returns {number}
      */
     get s1() {
-        const ret = wasm.frvpoutput_pocVolume(this.__wbg_ptr);
+        const ret = wasm.wasmpivotpointsoutput_s1(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3111,7 +2846,7 @@ class WasmPivotPointsOutput {
      * @returns {number}
      */
     get s2() {
-        const ret = wasm.frvpoutput_valueAreaVolume(this.__wbg_ptr);
+        const ret = wasm.wasmpivotpointsoutput_s2(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3119,15 +2854,7 @@ class WasmPivotPointsOutput {
      * @returns {number}
      */
     get s3() {
-        const ret = wasm.frvpoutput_rangeHigh(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * The pivot point (central level)
-     * @returns {number}
-     */
-    get pivot() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+        const ret = wasm.wasmpivotpointsoutput_s3(this.__wbg_ptr);
         return ret;
     }
 }
@@ -3139,7 +2866,6 @@ exports.WasmPivotPointsOutput = WasmPivotPointsOutput;
  */
 class WasmStochOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmStochOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmStochOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -3160,7 +2886,7 @@ class WasmStochOutput {
      * @returns {number}
      */
     get d() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
+        const ret = wasm.wasmstochoutput_d(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3168,7 +2894,7 @@ class WasmStochOutput {
      * @returns {number}
      */
     get k() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+        const ret = wasm.wasmstochoutput_k(this.__wbg_ptr);
         return ret;
     }
 }
@@ -3180,7 +2906,6 @@ exports.WasmStochOutput = WasmStochOutput;
  */
 class WasmStochRsiOutput {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmStochRsiOutput.prototype);
         obj.__wbg_ptr = ptr;
         WasmStochRsiOutputFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -3201,7 +2926,7 @@ class WasmStochRsiOutput {
      * @returns {number}
      */
     get d() {
-        const ret = wasm.frvpoutput_vah(this.__wbg_ptr);
+        const ret = wasm.wasmstochrsioutput_d(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -3209,7 +2934,7 @@ class WasmStochRsiOutput {
      * @returns {number}
      */
     get k() {
-        const ret = wasm.bbandsstream_k(this.__wbg_ptr);
+        const ret = wasm.wasmstochrsioutput_k(this.__wbg_ptr);
         return ret;
     }
 }
@@ -3256,6 +2981,14 @@ class WmaStream {
         }
     }
     /**
+     * Check if calculator has enough data to produce values.
+     * @returns {boolean}
+     */
+    isReady() {
+        const ret = wasm.wmastream_isReady(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
      * Create a new streaming WMA calculator.
      * @param {number} period
      */
@@ -3269,7 +3002,7 @@ class WmaStream {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             WmaStreamFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -3286,26 +3019,18 @@ class WmaStream {
         return ret;
     }
     /**
-     * Reset the calculator to initial state.
-     */
-    reset() {
-        wasm.bbandsstream_reset(this.__wbg_ptr);
-    }
-    /**
      * Get the period.
      * @returns {number}
      */
     get period() {
-        const ret = wasm.bbandsstream_period(this.__wbg_ptr);
+        const ret = wasm.wmastream_period(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
-     * Check if calculator has enough data to produce values.
-     * @returns {boolean}
+     * Reset the calculator to initial state.
      */
-    isReady() {
-        const ret = wasm.bbandsstream_isReady(this.__wbg_ptr);
-        return ret !== 0;
+    reset() {
+        wasm.wmastream_reset(this.__wbg_ptr);
     }
 }
 if (Symbol.dispose) WmaStream.prototype[Symbol.dispose] = WmaStream.prototype.free;
@@ -3634,7 +3359,7 @@ function frvp(highs, lows, closes, volumes, num_bins, value_area_percent) {
         const len2 = WASM_VECTOR_LEN;
         const ptr3 = passArrayF64ToWasm0(volumes, wasm.__wbindgen_export3);
         const len3 = WASM_VECTOR_LEN;
-        wasm.frvp(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(num_bins) ? 0x100000001 : (num_bins) >>> 0, !isLikeNone(value_area_percent), isLikeNone(value_area_percent) ? 0 : value_area_percent);
+        wasm.frvp(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(num_bins) ? Number.MAX_SAFE_INTEGER : (num_bins) >>> 0, !isLikeNone(value_area_percent), isLikeNone(value_area_percent) ? 0 : value_area_percent);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -4168,69 +3893,300 @@ function wma(data, period) {
     }
 }
 exports.wma = wma;
+function __wbg_get_imports() {
+    const import0 = {
+        __proto__: null,
+        __wbg_Error_92b29b0548f8b746: function(arg0, arg1) {
+            const ret = Error(getStringFromWasm0(arg0, arg1));
+            return addHeapObject(ret);
+        },
+        __wbg___wbindgen_throw_344f42d3211c4765: function(arg0, arg1) {
+            throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_error_a6fa202b58aa1cd3: function(arg0, arg1) {
+            let deferred0_0;
+            let deferred0_1;
+            try {
+                deferred0_0 = arg0;
+                deferred0_1 = arg1;
+                console.error(getStringFromWasm0(arg0, arg1));
+            } finally {
+                wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+            }
+        },
+        __wbg_new_227d7c05414eb861: function() {
+            const ret = new Error();
+            return addHeapObject(ret);
+        },
+        __wbg_new_da52cf8fe3429cb2: function() {
+            const ret = new Object();
+            return addHeapObject(ret);
+        },
+        __wbg_new_from_slice_7e254b47c77fb8cc: function(arg0, arg1) {
+            const ret = new Float64Array(getArrayF64FromWasm0(arg0, arg1));
+            return addHeapObject(ret);
+        },
+        __wbg_set_8535240470bf2500: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+            return ret;
+        }, arguments); },
+        __wbg_stack_3b0d974bbf31e44f: function(arg0, arg1) {
+            const ret = getObject(arg1).stack;
+            const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+            const len1 = WASM_VECTOR_LEN;
+            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+        },
+        __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(String) -> Externref`.
+            const ret = getStringFromWasm0(arg0, arg1);
+            return addHeapObject(ret);
+        },
+        __wbindgen_object_drop_ref: function(arg0) {
+            takeObject(arg0);
+        },
+    };
+    return {
+        __proto__: null,
+        "./ta_core_bg.js": import0,
+    };
+}
 
-exports.__wbg_Error_52673b7de5a0ca89 = function(arg0, arg1) {
-    const ret = Error(getStringFromWasm0(arg0, arg1));
-    return addHeapObject(ret);
-};
+const AdxStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_adxstream_free(ptr, 1));
+const AnchoredVwapStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_anchoredvwapstream_free(ptr, 1));
+const AtrStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_atrstream_free(ptr, 1));
+const BBandsStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_bbandsstream_free(ptr, 1));
+const CvdOhlcvStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_cvdohlcvstream_free(ptr, 1));
+const CvdStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_cvdstream_free(ptr, 1));
+const EmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_emastream_free(ptr, 1));
+const FrvpOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_frvpoutput_free(ptr, 1));
+const FrvpStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_frvpstream_free(ptr, 1));
+const HmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_hmastream_free(ptr, 1));
+const IchimokuStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_ichimokustream_free(ptr, 1));
+const LinRegStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_linregstream_free(ptr, 1));
+const MacdStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_macdstream_free(ptr, 1));
+const MfiStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_mfistream_free(ptr, 1));
+const RollingVwapStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_rollingvwapstream_free(ptr, 1));
+const RsiStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_rsistream_free(ptr, 1));
+const SessionVwapStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_sessionvwapstream_free(ptr, 1));
+const SmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_smastream_free(ptr, 1));
+const StochFastStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stochfaststream_free(ptr, 1));
+const StochRsiStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stochrsistream_free(ptr, 1));
+const StochSlowStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stochslowstream_free(ptr, 1));
+const VolumeProfileRowFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_volumeprofilerow_free(ptr, 1));
+const WasmAdxOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmadxoutput_free(ptr, 1));
+const WasmBBandsOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmbbandsoutput_free(ptr, 1));
+const WasmIchimokuOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmichimokuoutput_free(ptr, 1));
+const WasmLinRegOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmlinregoutput_free(ptr, 1));
+const WasmMacdOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmmacdoutput_free(ptr, 1));
+const WasmPivotPointsOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmpivotpointsoutput_free(ptr, 1));
+const WasmStochOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmstochoutput_free(ptr, 1));
+const WasmStochRsiOutputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmstochrsioutput_free(ptr, 1));
+const WmaStreamFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wmastream_free(ptr, 1));
 
-exports.__wbg___wbindgen_throw_dd24417ed36fc46e = function(arg0, arg1) {
-    throw new Error(getStringFromWasm0(arg0, arg1));
-};
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
 
-exports.__wbg_error_7534b8e9a36f1ab4 = function(arg0, arg1) {
-    let deferred0_0;
-    let deferred0_1;
-    try {
-        deferred0_0 = arg0;
-        deferred0_1 = arg1;
-        console.error(getStringFromWasm0(arg0, arg1));
-    } finally {
-        wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+    heap[idx] = obj;
+    return idx;
+}
+
+function dropObject(idx) {
+    if (idx < 1028) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+let cachedDataViewMemory0 = null;
+function getDataViewMemory0() {
+    if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
+        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
     }
-};
+    return cachedDataViewMemory0;
+}
 
-exports.__wbg_new_1ba21ce319a06297 = function() {
-    const ret = new Object();
-    return addHeapObject(ret);
-};
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
+}
 
-exports.__wbg_new_8a6f238a6ece86ea = function() {
-    const ret = new Error();
-    return addHeapObject(ret);
-};
+function getStringFromWasm0(ptr, len) {
+    return decodeText(ptr >>> 0, len);
+}
 
-exports.__wbg_new_from_slice_9a48ef80d2a51f94 = function(arg0, arg1) {
-    const ret = new Float64Array(getArrayF64FromWasm0(arg0, arg1));
-    return addHeapObject(ret);
-};
+let cachedUint8ArrayMemory0 = null;
+function getUint8ArrayMemory0() {
+    if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
+        cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
+    }
+    return cachedUint8ArrayMemory0;
+}
 
-exports.__wbg_set_781438a03c0c3c81 = function() { return handleError(function (arg0, arg1, arg2) {
-    const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+function getObject(idx) { return heap[idx]; }
+
+function handleError(f, args) {
+    try {
+        return f.apply(this, args);
+    } catch (e) {
+        wasm.__wbindgen_export2(addHeapObject(e));
+    }
+}
+
+let heap = new Array(1024).fill(undefined);
+heap.push(undefined, null, true, false);
+
+let heap_next = heap.length;
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
+}
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64ArrayMemory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passStringToWasm0(arg, malloc, realloc) {
+    if (realloc === undefined) {
+        const buf = cachedTextEncoder.encode(arg);
+        const ptr = malloc(buf.length, 1) >>> 0;
+        getUint8ArrayMemory0().subarray(ptr, ptr + buf.length).set(buf);
+        WASM_VECTOR_LEN = buf.length;
+        return ptr;
+    }
+
+    let len = arg.length;
+    let ptr = malloc(len, 1) >>> 0;
+
+    const mem = getUint8ArrayMemory0();
+
+    let offset = 0;
+
+    for (; offset < len; offset++) {
+        const code = arg.charCodeAt(offset);
+        if (code > 0x7F) break;
+        mem[ptr + offset] = code;
+    }
+    if (offset !== len) {
+        if (offset !== 0) {
+            arg = arg.slice(offset);
+        }
+        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
+        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
+        const ret = cachedTextEncoder.encodeInto(arg, view);
+
+        offset += ret.written;
+        ptr = realloc(ptr, len, offset, 1) >>> 0;
+    }
+
+    WASM_VECTOR_LEN = offset;
+    return ptr;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
     return ret;
-}, arguments) };
+}
 
-exports.__wbg_stack_0ed75d68575b0f3c = function(arg0, arg1) {
-    const ret = getObject(arg1).stack;
-    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
-    const len1 = WASM_VECTOR_LEN;
-    getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-    getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-};
+let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
+cachedTextDecoder.decode();
+function decodeText(ptr, len) {
+    return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
+}
 
-exports.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
-    // Cast intrinsic for `Ref(String) -> Externref`.
-    const ret = getStringFromWasm0(arg0, arg1);
-    return addHeapObject(ret);
-};
+const cachedTextEncoder = new TextEncoder();
 
-exports.__wbindgen_object_drop_ref = function(arg0) {
-    takeObject(arg0);
-};
+if (!('encodeInto' in cachedTextEncoder)) {
+    cachedTextEncoder.encodeInto = function (arg, view) {
+        const buf = cachedTextEncoder.encode(arg);
+        view.set(buf);
+        return {
+            read: arg.length,
+            written: buf.length
+        };
+    };
+}
+
+let WASM_VECTOR_LEN = 0;
 
 const wasmPath = `${__dirname}/ta_core_bg.wasm`;
 const wasmBytes = require('fs').readFileSync(wasmPath);
 const wasmModule = new WebAssembly.Module(wasmBytes);
-const wasm = exports.__wasm = new WebAssembly.Instance(wasmModule, imports).exports;
-
+let wasmInstance = new WebAssembly.Instance(wasmModule, __wbg_get_imports());
+let wasm = wasmInstance.exports;
 wasm.__wbindgen_start();
