@@ -101,7 +101,7 @@ The following table records the `ta-tools (WASM)` mean for the 100,000-value bat
 | Pivot Points (standard) | 186.64 ops/s · 5.3578 ms | — |
 | FRVP | 305.57 ops/s · 3.2725 ms | 2,841.91 ops/s · 0.3519 ms |
 
-The FRVP streaming case is an append-and-recalculate benchmark, not equivalent to the O(1) scalar stream cases. The current benchmark file does not include every stream class, notably anchored VWAP and pivot points, so those remain batch-only measurements here.
+The historical FRVP streaming case is an append-and-recalculate benchmark, not equivalent to the O(1) scalar stream cases. The expanded benchmark matrix now covers every retained stream class; pivot points remain batch-only because the public API has no pivot stream.
 
 ### Native vertical-slice benchmark
 
@@ -187,6 +187,21 @@ pnpm pack --dry-run
 ```
 
 The targeted Vitest suite passed 15 tests, and the pack dry-run contains no `pkg/` or WASM artifact.
+
+### Complete benchmark matrix
+
+The benchmark command now runs one complete cross-library matrix through `tests/benchmark.bench.ts`:
+
+- 26 size-scaled batch cases covering the public batch surface, both MACD signal types, both stochastic modes, all pivot variants, and both anchored VWAP modes at 1k, 10k, and 100k values;
+- scalar pivot variants measured separately because they do not consume a dataset;
+- 23 streaming cases initialized with 1k, 10k, and 100k values, then measured as one incremental update;
+- `ta-tools (NAPI)` and the installed original `ta-tools (WASM)` implementation on every retained ta-tools case;
+- compatible rows for `fast-technical-indicators`, `indicatorts`, and `trading-signals`, with explicit closest-semantic labels where the APIs differ;
+- JSON output through the existing Vitest benchmark output configuration.
+
+The original WASM package's published TypeScript wrapper is not loadable under the current Node 26 module rules because its generated glue is CommonJS-shaped inside a package marked ESM. The benchmark loads that installed package's original `pkg/ta_core.js` glue through `tests/wasm-loader.cjs`, so the `ta-tools (WASM)` rows measure the old implementation rather than the NAPI facade.
+
+FRVP stream results are explicitly labeled append/recalculate because each update grows the profile and is not comparable to O(1) stream updates. Batch comparisons use prebuilt `number[]` inputs because the comparison libraries do not accept the native facade's `Float64Array` records; the results therefore include our boundary validation/native conversion but not competitor input conversion. CVD, CVD OHLCV, anchored VWAP, exact rolling/anchored semantics, pivot streams, and FRVP have no installed implementation with matching semantics and are shown only for the implementations that support them.
 
 ## Findings
 

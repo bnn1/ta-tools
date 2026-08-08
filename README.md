@@ -111,6 +111,14 @@ pnpm run test
 
 The Rust algorithms live in `crates/ta-core`, native bindings live in `crates/ta-native`, and the typed TypeScript facade lives in `js/`. The generated `native/` loader and `dist/` bundle are build output. The package is native-only; platform-specific NAPI-RS packages are added during the publishing step.
 
+Run the complete deterministic benchmark matrix with:
+
+```bash
+pnpm bench
+```
+
+This runs every public batch case at 1,000, 10,000, and 100,000 values, plus every retained stream class after each of those initialization sizes. Each matrix row is labeled `ta-tools (NAPI)`, `ta-tools (WASM)`, or by the installed comparison library: `fast-technical-indicators@1.1.4`, `indicatorts@2.2.2`, and `trading-signals@8.2.0`. Unsupported equivalents are omitted instead of being represented by unrelated algorithms; closest-semantic cases such as close/volume VWAP and volume profile are labeled explicitly. Results are written to `benchmark-results.json`; FRVP streaming is labeled as append/recalculate because it is not an O(1) update.
+
 ## License
 
 MIT

@@ -9,12 +9,10 @@ Use this skill whenever a task depends on a library, framework, compiler tool, C
 
 ## Workflow
 
-1. Resolve the library ID with `resolve-library-id` using the library name and conveying the user's full intent as shortly as you can.
+1. Resolve the library ID with `resolve-library-id` using the library name.
 2. Select the closest authoritative, version-matched result.
 3. Fetch the relevant documentation with `query-docs` using the specific task question and conveying the user's full intent as shortly as you can.
 4. Compare the documentation with the installed version in `Cargo.toml`, `package.json`, or the lockfile.
 5. Use repository source and tests to verify local behavior after the documentation lookup.
-
-For this repository, common lookups include Rust, `wasm-bindgen`, `wasm-pack`, Binaryen/`wasm-opt`, TypeScript, Vitest, and npm package APIs.
 
 If Context7 cannot resolve or retrieve the needed documentation, state that limitation and use authoritative upstream documentation or installed declarations as an explicit fallback. Never invent an API, option, command, or version.

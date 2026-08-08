@@ -26,8 +26,8 @@
     "build": "pnpm run build:native && pnpm run build:js",
     "test": "pnpm run build && pnpm exec vitest run",
     "test:built": "pnpm exec vitest run",
-    "bench": "pnpm run build && pnpm exec vitest bench",
-    "bench:built": "pnpm exec vitest bench",
+    "bench": "pnpm run build && pnpm exec vitest bench --run",
+    "bench:built": "pnpm exec vitest bench --run",
     "pack:check": "pnpm pack --dry-run",
     "prepublishOnly": "pnpm run test"
   },
@@ -52,6 +52,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "@bnn1/ta-tools": "^0.2.3",
     "@napi-rs/cli": "^3",
     "esbuild": "^0.28.1",
     "fast-technical-indicators": "^1.1.4",

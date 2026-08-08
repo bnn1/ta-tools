@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@bnn1/ta-tools':
+        specifier: ^0.2.3
+        version: 0.2.3
       '@napi-rs/cli':
         specifier: ^3
         version: 3.8.2(@emnapi/runtime@1.11.2)
@@ -34,6 +37,10 @@ importers:
         version: 4.1.10(vite@8.2.1(esbuild@0.28.1))
 
 packages:
+
+  '@bnn1/ta-tools@0.2.3':
+    resolution: {integrity: sha512-DUivv72dbofNWzGh0hxxJ44TvIYvtByugeewhUMbl/wp7+67sTHvy4rNx6tRDaFoDyCVFcjqqjEo21jIxP800Q==}
+    engines: {node: '>=22.0.0'}
 
   '@emnapi/core@1.11.2':
     resolution: {integrity: sha512-TC8MkTuZUtcTSiFeuC0ksCh9QIJ5+F21MvZ4Wn4ORfYaFJ/0dsiudv5tVkejgwZlwQ39jL9WWDe2lz8x0WglOA==}
@@ -1728,6 +1735,8 @@ packages:
     hasBin: true
 
 snapshots:
+
+  '@bnn1/ta-tools@0.2.3': {}
 
   '@emnapi/core@1.11.2':
     dependencies:
