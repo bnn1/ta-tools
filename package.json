@@ -1,7 +1,7 @@
 {
   "name": "@bnn1/ta-tools",
   "version": "0.2.3",
-  "description": "Blazing fast technical analysis indicators powered by Rust/WASM",
+  "description": "Blazing fast technical analysis indicators powered by Rust and NAPI-RS",
   "type": "module",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -14,17 +14,16 @@
     "dist/index.js",
     "dist/index.js.map",
     "dist/index.d.ts",
-    "pkg/ta_core.js",
-    "pkg/ta_core.d.ts",
-    "pkg/ta_core_bg.wasm",
+    "native/index.js",
+    "native/index.d.ts",
     "README.md",
     "LICENSE.md"
   ],
   "scripts": {
     "clean": "node scripts/clean.mjs",
-    "build:wasm": "wasm-pack build crates/ta-core --target nodejs --out-dir ../../pkg --out-name ta_core",
     "build:js": "tsup",
-    "build": "pnpm run build:wasm && pnpm run build:js",
+    "build:native": "napi build --manifest-path crates/ta-native/Cargo.toml --release --platform --esm --output-dir native --js index.js --dts index.d.ts",
+    "build": "pnpm run build:native && pnpm run build:js",
     "test": "pnpm run build && pnpm exec vitest run",
     "test:built": "pnpm exec vitest run",
     "bench": "pnpm run build && pnpm exec vitest bench",
@@ -48,11 +47,12 @@
     "technical-analysis",
     "trading",
     "indicators",
-    "wasm",
+    "napi-rs",
     "rust"
   ],
   "license": "MIT",
   "devDependencies": {
+    "@napi-rs/cli": "^3",
     "esbuild": "^0.28.1",
     "fast-technical-indicators": "^1.1.4",
     "indicatorts": "^2.2.2",

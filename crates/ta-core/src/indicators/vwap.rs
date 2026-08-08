@@ -44,7 +44,7 @@
 //! ```
 
 use crate::traits::{Indicator, StreamingIndicator};
-use crate::types::{IndicatorError, IndicatorResult, OHLCV};
+use crate::types::{IndicatorError, IndicatorResult, VwapBar, OHLCV};
 
 // ============================================================================
 // Constants
@@ -64,10 +64,62 @@ fn utc_day(timestamp_ms: i64) -> i64 {
     timestamp_ms.div_euclid(MS_PER_DAY)
 }
 
-/// Calculate typical price for a candle.
+trait VwapInput {
+    fn timestamp(&self) -> i64;
+    fn high(&self) -> f64;
+    fn low(&self) -> f64;
+    fn close(&self) -> f64;
+    fn volume(&self) -> f64;
+}
+
+impl VwapInput for OHLCV {
+    fn timestamp(&self) -> i64 {
+        self.timestamp
+    }
+
+    fn high(&self) -> f64 {
+        self.high
+    }
+
+    fn low(&self) -> f64 {
+        self.low
+    }
+
+    fn close(&self) -> f64 {
+        self.close
+    }
+
+    fn volume(&self) -> f64 {
+        self.volume
+    }
+}
+
+impl VwapInput for VwapBar {
+    fn timestamp(&self) -> i64 {
+        self.timestamp
+    }
+
+    fn high(&self) -> f64 {
+        self.high
+    }
+
+    fn low(&self) -> f64 {
+        self.low
+    }
+
+    fn close(&self) -> f64 {
+        self.close
+    }
+
+    fn volume(&self) -> f64 {
+        self.volume
+    }
+}
+
+/// Calculate typical price for a VWAP input bar.
 #[inline]
-fn typical_price(candle: &OHLCV) -> f64 {
-    (candle.high + candle.low + candle.close) / 3.0
+fn typical_price<T: VwapInput>(bar: &T) -> f64 {
+    (bar.high() + bar.low() + bar.close()) / 3.0
 }
 
 // ============================================================================
@@ -86,42 +138,50 @@ impl SessionVwap {
     pub const fn new() -> Self {
         Self
     }
+
+    /// Calculates VWAP from native timestamped HLCV bars.
+    pub fn calculate_bars(&self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
+        calculate_session(data)
+    }
 }
 
 impl Indicator<&[OHLCV], Vec<f64>> for SessionVwap {
     fn calculate(&self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
-        if data.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut result = Vec::with_capacity(data.len());
-        let mut cum_tp_vol = 0.0;
-        let mut cum_vol = 0.0;
-        let mut current_day = utc_day(data[0].timestamp);
-
-        for candle in data {
-            let day = utc_day(candle.timestamp);
-
-            // Reset on new day
-            if day != current_day {
-                cum_tp_vol = 0.0;
-                cum_vol = 0.0;
-                current_day = day;
-            }
-
-            let tp = typical_price(candle);
-            cum_tp_vol += tp * candle.volume;
-            cum_vol += candle.volume;
-
-            if cum_vol > 0.0 {
-                result.push(cum_tp_vol / cum_vol);
-            } else {
-                result.push(f64::NAN);
-            }
-        }
-
-        Ok(result)
+        calculate_session(data)
     }
+}
+
+fn calculate_session<T: VwapInput>(data: &[T]) -> IndicatorResult<Vec<f64>> {
+    if data.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let mut result = Vec::with_capacity(data.len());
+    let mut cum_tp_vol = 0.0;
+    let mut cum_vol = 0.0;
+    let mut current_day = utc_day(data[0].timestamp());
+
+    for bar in data {
+        let day = utc_day(bar.timestamp());
+
+        if day != current_day {
+            cum_tp_vol = 0.0;
+            cum_vol = 0.0;
+            current_day = day;
+        }
+
+        let tp = typical_price(bar);
+        cum_tp_vol += tp * bar.volume();
+        cum_vol += bar.volume();
+
+        if cum_vol > 0.0 {
+            result.push(cum_tp_vol / cum_vol);
+        } else {
+            result.push(f64::NAN);
+        }
+    }
+
+    Ok(result)
 }
 
 /// Streaming Session VWAP calculator for real-time O(1) updates.
@@ -174,10 +234,13 @@ impl SessionVwapStream {
     pub fn cumulative_volume(&self) -> f64 {
         self.cum_vol
     }
-}
 
-impl StreamingIndicator<OHLCV, f64> for SessionVwapStream {
-    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
+    /// Initializes the stream from native timestamped HLCV bars.
+    pub fn init_bars(&mut self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
+        self.init_input(data)
+    }
+
+    fn init_input<T: VwapInput>(&mut self, data: &[T]) -> IndicatorResult<Vec<f64>> {
         self.reset();
 
         if data.is_empty() {
@@ -185,36 +248,24 @@ impl StreamingIndicator<OHLCV, f64> for SessionVwapStream {
         }
 
         let mut result = Vec::with_capacity(data.len());
-        self.current_day = utc_day(data[0].timestamp);
+        self.current_day = utc_day(data[0].timestamp());
         self.initialized = true;
 
-        for candle in data {
-            let day = utc_day(candle.timestamp);
-
-            if day != self.current_day {
-                self.cum_tp_vol = 0.0;
-                self.cum_vol = 0.0;
-                self.current_day = day;
-            }
-
-            let tp = typical_price(candle);
-            self.cum_tp_vol += tp * candle.volume;
-            self.cum_vol += candle.volume;
-
-            if self.cum_vol > 0.0 {
-                result.push(self.cum_tp_vol / self.cum_vol);
-            } else {
-                result.push(f64::NAN);
-            }
+        for bar in data {
+            result.push(self.next_input(bar).unwrap_or(f64::NAN));
         }
 
         Ok(result)
     }
 
-    fn next(&mut self, candle: OHLCV) -> Option<f64> {
-        let day = utc_day(candle.timestamp);
+    /// Processes one native timestamped HLCV bar.
+    pub fn next_bar(&mut self, bar: VwapBar) -> Option<f64> {
+        self.next_input(&bar)
+    }
 
-        // Reset on new day
+    fn next_input<T: VwapInput>(&mut self, bar: &T) -> Option<f64> {
+        let day = utc_day(bar.timestamp());
+
         if !self.initialized || day != self.current_day {
             self.cum_tp_vol = 0.0;
             self.cum_vol = 0.0;
@@ -222,15 +273,25 @@ impl StreamingIndicator<OHLCV, f64> for SessionVwapStream {
             self.initialized = true;
         }
 
-        let tp = typical_price(&candle);
-        self.cum_tp_vol += tp * candle.volume;
-        self.cum_vol += candle.volume;
+        let tp = typical_price(bar);
+        self.cum_tp_vol += tp * bar.volume();
+        self.cum_vol += bar.volume();
 
         if self.cum_vol > 0.0 {
             Some(self.cum_tp_vol / self.cum_vol)
         } else {
             None
         }
+    }
+}
+
+impl StreamingIndicator<OHLCV, f64> for SessionVwapStream {
+    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
+        self.init_input(data)
+    }
+
+    fn next(&mut self, candle: OHLCV) -> Option<f64> {
+        self.next_input(&candle)
     }
 
     fn reset(&mut self) {
@@ -276,41 +337,50 @@ impl RollingVwap {
     pub const fn period(&self) -> usize {
         self.period
     }
+
+    /// Calculates rolling VWAP from native timestamped HLCV bars.
+    pub fn calculate_bars(&self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
+        calculate_rolling(self.period, data)
+    }
 }
 
 impl Indicator<&[OHLCV], Vec<f64>> for RollingVwap {
     fn calculate(&self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
-        let len = data.len();
-        let mut result = vec![f64::NAN; len];
+        calculate_rolling(self.period, data)
+    }
+}
 
-        if len < self.period {
-            return Ok(result);
-        }
+fn calculate_rolling<T: VwapInput>(period: usize, data: &[T]) -> IndicatorResult<Vec<f64>> {
+    let len = data.len();
+    let mut result = vec![f64::NAN; len];
 
-        // Precompute typical price × volume and volume for each candle
-        let tp_vols: Vec<f64> = data.iter().map(|c| typical_price(c) * c.volume).collect();
-        let volumes: Vec<f64> = data.iter().map(|c| c.volume).collect();
+    if len < period {
+        return Ok(result);
+    }
 
-        // Initial window sum
-        let mut sum_tp_vol: f64 = tp_vols[..self.period].iter().sum();
-        let mut sum_vol: f64 = volumes[..self.period].iter().sum();
+    let tp_vols: Vec<f64> = data
+        .iter()
+        .map(|bar| typical_price(bar) * bar.volume())
+        .collect();
+    let volumes: Vec<f64> = data.iter().map(|bar| bar.volume()).collect();
+
+    let mut sum_tp_vol: f64 = tp_vols[..period].iter().sum();
+    let mut sum_vol: f64 = volumes[..period].iter().sum();
+
+    if sum_vol > 0.0 {
+        result[period - 1] = sum_tp_vol / sum_vol;
+    }
+
+    for i in period..len {
+        sum_tp_vol += tp_vols[i] - tp_vols[i - period];
+        sum_vol += volumes[i] - volumes[i - period];
 
         if sum_vol > 0.0 {
-            result[self.period - 1] = sum_tp_vol / sum_vol;
+            result[i] = sum_tp_vol / sum_vol;
         }
-
-        // Slide window
-        for i in self.period..len {
-            sum_tp_vol += tp_vols[i] - tp_vols[i - self.period];
-            sum_vol += volumes[i] - volumes[i - self.period];
-
-            if sum_vol > 0.0 {
-                result[i] = sum_tp_vol / sum_vol;
-            }
-        }
-
-        Ok(result)
     }
+
+    Ok(result)
 }
 
 /// Streaming Rolling VWAP calculator for real-time O(1) updates.
@@ -364,42 +434,42 @@ impl RollingVwapStream {
             None
         }
     }
-}
 
-impl StreamingIndicator<OHLCV, f64> for RollingVwapStream {
-    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
+    /// Initializes the stream from native timestamped HLCV bars.
+    pub fn init_bars(&mut self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
+        self.init_input(data)
+    }
+
+    fn init_input<T: VwapInput>(&mut self, data: &[T]) -> IndicatorResult<Vec<f64>> {
         self.reset();
+        let mut result = Vec::with_capacity(data.len());
 
-        let len = data.len();
-        let mut result = Vec::with_capacity(len);
-
-        for candle in data {
-            match self.next(*candle) {
-                Some(v) => result.push(v),
-                None => result.push(f64::NAN),
-            }
+        for bar in data {
+            result.push(self.next_input(bar).unwrap_or(f64::NAN));
         }
 
         Ok(result)
     }
 
-    fn next(&mut self, candle: OHLCV) -> Option<f64> {
-        let tp_vol = typical_price(&candle) * candle.volume;
-        let vol = candle.volume;
+    /// Processes one native timestamped HLCV bar.
+    pub fn next_bar(&mut self, bar: VwapBar) -> Option<f64> {
+        self.next_input(&bar)
+    }
 
-        // Remove oldest value from sum if buffer is full
+    fn next_input<T: VwapInput>(&mut self, bar: &T) -> Option<f64> {
+        let tp_vol = typical_price(bar) * bar.volume();
+        let vol = bar.volume();
+
         if self.count >= self.period {
             self.sum_tp_vol -= self.tp_vol_buffer[self.buffer_idx];
             self.sum_vol -= self.vol_buffer[self.buffer_idx];
         }
 
-        // Add new value
         self.tp_vol_buffer[self.buffer_idx] = tp_vol;
         self.vol_buffer[self.buffer_idx] = vol;
         self.sum_tp_vol += tp_vol;
         self.sum_vol += vol;
 
-        // Update buffer index
         self.buffer_idx = (self.buffer_idx + 1) % self.period;
         self.count = self.count.saturating_add(1);
 
@@ -408,6 +478,16 @@ impl StreamingIndicator<OHLCV, f64> for RollingVwapStream {
         } else {
             None
         }
+    }
+}
+
+impl StreamingIndicator<OHLCV, f64> for RollingVwapStream {
+    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
+        self.init_input(data)
+    }
+
+    fn next(&mut self, candle: OHLCV) -> Option<f64> {
+        self.next_input(&candle)
     }
 
     fn reset(&mut self) {
@@ -453,37 +533,54 @@ impl AnchoredVwap {
             .map(|idx| Self::new(idx))
     }
 
+    /// Creates an Anchored VWAP calculator from native timestamped HLCV bars.
+    #[must_use]
+    pub fn from_timestamp_bars(data: &[VwapBar], anchor_timestamp: i64) -> Option<Self> {
+        data.iter()
+            .position(|bar| bar.timestamp >= anchor_timestamp)
+            .map(Self::new)
+    }
+
     /// Returns the anchor index.
     #[must_use]
     pub const fn anchor_index(&self) -> usize {
         self.anchor_index
     }
+
+    /// Calculates anchored VWAP from native timestamped HLCV bars.
+    pub fn calculate_bars(&self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
+        calculate_anchored(self.anchor_index, data)
+    }
 }
 
 impl Indicator<&[OHLCV], Vec<f64>> for AnchoredVwap {
     fn calculate(&self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
-        let len = data.len();
-        let mut result = vec![f64::NAN; len];
-
-        if self.anchor_index >= len {
-            return Ok(result);
-        }
-
-        let mut cum_tp_vol = 0.0;
-        let mut cum_vol = 0.0;
-
-        for (i, candle) in data.iter().enumerate().skip(self.anchor_index) {
-            let tp = typical_price(candle);
-            cum_tp_vol += tp * candle.volume;
-            cum_vol += candle.volume;
-
-            if cum_vol > 0.0 {
-                result[i] = cum_tp_vol / cum_vol;
-            }
-        }
-
-        Ok(result)
+        calculate_anchored(self.anchor_index, data)
     }
+}
+
+fn calculate_anchored<T: VwapInput>(anchor_index: usize, data: &[T]) -> IndicatorResult<Vec<f64>> {
+    let len = data.len();
+    let mut result = vec![f64::NAN; len];
+
+    if anchor_index >= len {
+        return Ok(result);
+    }
+
+    let mut cum_tp_vol = 0.0;
+    let mut cum_vol = 0.0;
+
+    for (i, bar) in data.iter().enumerate().skip(anchor_index) {
+        let tp = typical_price(bar);
+        cum_tp_vol += tp * bar.volume();
+        cum_vol += bar.volume();
+
+        if cum_vol > 0.0 {
+            result[i] = cum_tp_vol / cum_vol;
+        }
+    }
+
+    Ok(result)
 }
 
 /// Streaming Anchored VWAP calculator for real-time O(1) updates.
@@ -571,52 +668,63 @@ impl AnchoredVwapStream {
     pub fn cumulative_volume(&self) -> f64 {
         self.cum_vol
     }
-}
 
-impl StreamingIndicator<OHLCV, f64> for AnchoredVwapStream {
-    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
-        // Don't reset anchor_timestamp, just reset accumulators
+    /// Initializes the stream from native timestamped HLCV bars.
+    pub fn init_bars(&mut self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
+        self.init_input(data)
+    }
+
+    fn init_input<T: VwapInput>(&mut self, data: &[T]) -> IndicatorResult<Vec<f64>> {
         self.cum_tp_vol = 0.0;
         self.cum_vol = 0.0;
         self.anchored = false;
 
         let mut result = Vec::with_capacity(data.len());
-
-        for candle in data {
-            match self.next(*candle) {
-                Some(v) => result.push(v),
-                None => result.push(f64::NAN),
-            }
+        for bar in data {
+            result.push(self.next_input(bar).unwrap_or(f64::NAN));
         }
 
         Ok(result)
     }
 
-    fn next(&mut self, candle: OHLCV) -> Option<f64> {
-        // Check if we should start anchoring
+    /// Processes one native timestamped HLCV bar.
+    pub fn next_bar(&mut self, bar: VwapBar) -> Option<f64> {
+        self.next_input(&bar)
+    }
+
+    fn next_input<T: VwapInput>(&mut self, bar: &T) -> Option<f64> {
         if !self.anchored {
             match self.anchor_timestamp {
-                Some(ts) if candle.timestamp >= ts => {
+                Some(timestamp) if bar.timestamp() >= timestamp => {
                     self.anchored = true;
                 }
                 None => {
-                    // anchor_now() was called - anchor at first candle
                     self.anchored = true;
-                    self.anchor_timestamp = Some(candle.timestamp);
+                    self.anchor_timestamp = Some(bar.timestamp());
                 }
                 _ => return None,
             }
         }
 
-        let tp = typical_price(&candle);
-        self.cum_tp_vol += tp * candle.volume;
-        self.cum_vol += candle.volume;
+        let tp = typical_price(bar);
+        self.cum_tp_vol += tp * bar.volume();
+        self.cum_vol += bar.volume();
 
         if self.cum_vol > 0.0 {
             Some(self.cum_tp_vol / self.cum_vol)
         } else {
             None
         }
+    }
+}
+
+impl StreamingIndicator<OHLCV, f64> for AnchoredVwapStream {
+    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<f64>> {
+        self.init_input(data)
+    }
+
+    fn next(&mut self, candle: OHLCV) -> Option<f64> {
+        self.next_input(&candle)
     }
 
     fn reset(&mut self) {
@@ -710,6 +818,38 @@ mod tests {
         // Day 1 should reset
         let tp_day1_bar0 = (55.0 + 49.0 + 52.0) / 3.0; // 52.0
         assert!(approx_eq(result[2], tp_day1_bar0, 0.01));
+    }
+
+    #[test]
+    fn test_vwap_bars_match_ohlcv_calculations() {
+        let candles = make_candles(
+            &[
+                (100.0, 105.0, 99.0, 102.0, 1000.0),
+                (102.0, 106.0, 101.0, 104.0, 1500.0),
+                (104.0, 108.0, 103.0, 106.0, 2000.0),
+                (106.0, 110.0, 105.0, 108.0, 1200.0),
+            ],
+            1700000000000,
+            60000,
+        );
+        let bars: Vec<VwapBar> = candles.iter().copied().map(VwapBar::from).collect();
+
+        let session_from_candles = SessionVwap::new().calculate(&candles).unwrap();
+        let session_from_bars = SessionVwap::new().calculate_bars(&bars).unwrap();
+        let rolling_from_candles = RollingVwap::new(3).unwrap().calculate(&candles).unwrap();
+        let rolling_from_bars = RollingVwap::new(3).unwrap().calculate_bars(&bars).unwrap();
+        let anchored_from_candles = AnchoredVwap::new(1).calculate(&candles).unwrap();
+        let anchored_from_bars = AnchoredVwap::new(1).calculate_bars(&bars).unwrap();
+
+        for (expected, actual) in session_from_candles.iter().zip(session_from_bars) {
+            assert!(approx_eq(*expected, actual, 0.0001));
+        }
+        for (expected, actual) in rolling_from_candles.iter().zip(rolling_from_bars) {
+            assert!(approx_eq(*expected, actual, 0.0001));
+        }
+        for (expected, actual) in anchored_from_candles.iter().zip(anchored_from_bars) {
+            assert!(approx_eq(*expected, actual, 0.0001));
+        }
     }
 
     #[test]

@@ -1,3 +1,0 @@
-[target.wasm32-unknown-unknown]
-# Enable SIMD for vectorized operations (Node.js 22+ supports WASM SIMD)
-rustflags = ["-C", "target-feature=+simd128"]

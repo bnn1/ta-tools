@@ -12,8 +12,5 @@ pub mod indicators;
 pub mod traits;
 pub mod types;
 
-#[cfg(feature = "wasm")]
-pub mod wasm;
-
 pub use traits::{Indicator, StreamingIndicator};
-pub use types::OHLCV;
+pub use types::{FrvpBar, VwapBar, OHLCV};

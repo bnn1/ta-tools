@@ -53,6 +53,78 @@ impl OHLCV {
     }
 }
 
+/// Timestamped high/low/close/volume bar used by VWAP indicators.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VwapBar {
+    /// Unix timestamp in milliseconds (UTC)
+    pub timestamp: i64,
+    /// Highest price
+    pub high: f64,
+    /// Lowest price
+    pub low: f64,
+    /// Closing price
+    pub close: f64,
+    /// Trading volume
+    pub volume: f64,
+}
+
+impl VwapBar {
+    /// Creates a new timestamped VWAP input bar.
+    #[must_use]
+    pub const fn new(timestamp: i64, high: f64, low: f64, close: f64, volume: f64) -> Self {
+        Self {
+            timestamp,
+            high,
+            low,
+            close,
+            volume,
+        }
+    }
+
+    /// Returns the typical price: (high + low + close) / 3.
+    #[must_use]
+    pub fn typical_price(&self) -> f64 {
+        (self.high + self.low + self.close) / 3.0
+    }
+}
+
+impl From<OHLCV> for VwapBar {
+    fn from(candle: OHLCV) -> Self {
+        Self::new(
+            candle.timestamp,
+            candle.high,
+            candle.low,
+            candle.close,
+            candle.volume,
+        )
+    }
+}
+
+/// High/low/volume bar used by the fixed-range volume profile indicator.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FrvpBar {
+    /// Highest price
+    pub high: f64,
+    /// Lowest price
+    pub low: f64,
+    /// Trading volume
+    pub volume: f64,
+}
+
+impl FrvpBar {
+    /// Creates a new fixed-range volume profile input bar.
+    #[must_use]
+    pub const fn new(high: f64, low: f64, volume: f64) -> Self {
+        Self { high, low, volume }
+    }
+}
+
+impl From<OHLCV> for FrvpBar {
+    fn from(candle: OHLCV) -> Self {
+        Self::new(candle.high, candle.low, candle.volume)
+    }
+}
+
 /// Result type alias for indicator calculations.
 pub type IndicatorResult<T> = Result<T, IndicatorError>;
 

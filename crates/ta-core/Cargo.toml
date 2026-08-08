@@ -5,24 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "High-performance technical analysis indicators for WASM"
+description = "High-performance technical analysis indicators"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
-
-[package.metadata.wasm-pack.profile.release]
-# Size-optimized wasm-opt with SIMD, bulk memory, nontrapping float-to-int support
-# Lower sign-extension ops so wasm-opt won't fail on modules that use i32.extend8_s
-wasm-opt = ["--enable-simd", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-ext", "-Oz"]
-
-[dependencies]
-wasm-bindgen = "0.2"
-js-sys = "0.3"
-console_error_panic_hook = { version = "0.1", optional = true }
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3"
-
-[features]
-default = ["wasm"]
-wasm = ["console_error_panic_hook"]
+crate-type = ["rlib"]

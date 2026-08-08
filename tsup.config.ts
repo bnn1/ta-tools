@@ -11,5 +11,9 @@ export default defineConfig({
   sourcemap: true,
   dts: true,
   clean: true,
-  external: ["../pkg/ta_core.js", /^node:/, /^@bnn1\/ta-tools-/],
+  external: [
+    "../native/index.js",
+    /^node:/,
+    /^@bnn1\/ta-tools-/,
+  ],
 });

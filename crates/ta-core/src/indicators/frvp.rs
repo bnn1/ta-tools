@@ -26,7 +26,7 @@
 //! ```
 
 use crate::traits::{Indicator, StreamingIndicator};
-use crate::types::{IndicatorError, IndicatorResult, OHLCV};
+use crate::types::{FrvpBar, IndicatorError, IndicatorResult, OHLCV};
 
 // ============================================================================
 // Constants
@@ -38,14 +38,48 @@ pub const DEFAULT_NUM_BINS: usize = 100;
 /// Value Area percentage (70% of total volume)
 const VALUE_AREA_PERCENT: f64 = 0.70;
 
-fn validate_frvp_candle(candle: &OHLCV) -> IndicatorResult<()> {
-    if !candle.high.is_finite() || !candle.low.is_finite() || !candle.volume.is_finite() {
+trait FrvpInput {
+    fn high(&self) -> f64;
+    fn low(&self) -> f64;
+    fn volume(&self) -> f64;
+}
+
+impl FrvpInput for OHLCV {
+    fn high(&self) -> f64 {
+        self.high
+    }
+
+    fn low(&self) -> f64 {
+        self.low
+    }
+
+    fn volume(&self) -> f64 {
+        self.volume
+    }
+}
+
+impl FrvpInput for FrvpBar {
+    fn high(&self) -> f64 {
+        self.high
+    }
+
+    fn low(&self) -> f64 {
+        self.low
+    }
+
+    fn volume(&self) -> f64 {
+        self.volume
+    }
+}
+
+fn validate_frvp_bar<T: FrvpInput>(bar: &T) -> IndicatorResult<()> {
+    if !bar.high().is_finite() || !bar.low().is_finite() || !bar.volume().is_finite() {
         return Err(IndicatorError::InvalidParameter(
             "FRVP high, low, and volume values must be finite".to_string(),
         ));
     }
 
-    if candle.high < candle.low {
+    if bar.high() < bar.low() {
         return Err(IndicatorError::InvalidParameter(
             "FRVP high must be greater than or equal to low".to_string(),
         ));
@@ -180,6 +214,17 @@ impl Default for Frvp {
 
 impl Indicator<&[OHLCV], FrvpOutput> for Frvp {
     fn calculate(&self, data: &[OHLCV]) -> IndicatorResult<FrvpOutput> {
+        self.calculate_input(data)
+    }
+}
+
+impl Frvp {
+    /// Calculates FRVP from native high/low/volume bars.
+    pub fn calculate_bars(&self, data: &[FrvpBar]) -> IndicatorResult<FrvpOutput> {
+        self.calculate_input(data)
+    }
+
+    fn calculate_input<T: FrvpInput>(&self, data: &[T]) -> IndicatorResult<FrvpOutput> {
         if data.is_empty() {
             return Err(IndicatorError::InsufficientData {
                 required: 1,
@@ -188,7 +233,7 @@ impl Indicator<&[OHLCV], FrvpOutput> for Frvp {
         }
 
         for candle in data {
-            validate_frvp_candle(candle)?;
+            validate_frvp_bar(candle)?;
         }
 
         // Find the price range
@@ -196,13 +241,13 @@ impl Indicator<&[OHLCV], FrvpOutput> for Frvp {
         let mut range_low = f64::INFINITY;
 
         for candle in data {
-            range_high = range_high.max(candle.high);
-            range_low = range_low.min(candle.low);
+            range_high = range_high.max(candle.high());
+            range_low = range_low.min(candle.low());
         }
 
         // Handle edge case: all prices are the same
         if (range_high - range_low).abs() < f64::EPSILON {
-            let total_volume: f64 = data.iter().map(|c| c.volume).sum();
+            let total_volume: f64 = data.iter().map(|c| c.volume()).sum();
             let row = VolumeProfileRow {
                 price: range_high,
                 volume: total_volume,
@@ -231,13 +276,13 @@ impl Indicator<&[OHLCV], FrvpOutput> for Frvp {
 
         // Distribute volume from each candle across bins it touches
         for candle in data {
-            if candle.volume <= 0.0 {
+            if candle.volume() <= 0.0 {
                 continue;
             }
 
             // Find which bins this candle touches
-            let candle_low = candle.low;
-            let candle_high = candle.high;
+            let candle_low = candle.low();
+            let candle_high = candle.high();
 
             // Calculate bin indices this candle spans
             let start_bin = ((candle_low - range_low) / bin_size).floor() as usize;
@@ -252,7 +297,7 @@ impl Indicator<&[OHLCV], FrvpOutput> for Frvp {
 
             if candle_range < f64::EPSILON {
                 // Single price point - put all volume in one bin
-                bins[start_bin] += candle.volume;
+                bins[start_bin] += candle.volume();
             } else {
                 // Distribute volume proportionally across bins
                 for bin_idx in start_bin..=end_bin {
@@ -266,7 +311,7 @@ impl Indicator<&[OHLCV], FrvpOutput> for Frvp {
 
                     // Proportion of candle in this bin
                     let proportion = overlap / candle_range;
-                    bins[bin_idx] += candle.volume * proportion;
+                    bins[bin_idx] += candle.volume() * proportion;
                 }
             }
         }
@@ -384,15 +429,15 @@ fn calculate_value_area(bins: &[f64], poc_idx: usize, target_volume: f64) -> (us
 ///
 /// Unlike batch mode, streaming mode maintains an internal buffer of candles
 /// and recalculates on each update. This is still O(n) where n is the buffer size,
-/// but avoids re-passing all data from JS to WASM.
+/// but avoids re-passing all data across the JavaScript boundary.
 #[derive(Debug, Clone)]
 pub struct FrvpStream {
     /// Number of price bins
     num_bins: usize,
     /// Value area percentage
     value_area_percent: f64,
-    /// Internal candle buffer
-    candles: Vec<OHLCV>,
+    /// Internal high/low/volume buffer
+    bars: Vec<FrvpBar>,
     /// Whether initialized
     initialized: bool,
 }
@@ -412,7 +457,7 @@ impl FrvpStream {
         Ok(Self {
             num_bins,
             value_area_percent: VALUE_AREA_PERCENT,
-            candles: Vec::new(),
+            bars: Vec::new(),
             initialized: false,
         })
     }
@@ -433,7 +478,7 @@ impl FrvpStream {
         Ok(Self {
             num_bins,
             value_area_percent,
-            candles: Vec::new(),
+            bars: Vec::new(),
             initialized: false,
         })
     }
@@ -447,12 +492,12 @@ impl FrvpStream {
     /// Get the number of candles in the buffer.
     #[must_use]
     pub fn candle_count(&self) -> usize {
-        self.candles.len()
+        self.bars.len()
     }
 
     /// Clear all candles and reset.
     pub fn clear(&mut self) {
-        self.candles.clear();
+        self.bars.clear();
         self.initialized = false;
     }
 
@@ -462,20 +507,18 @@ impl FrvpStream {
             num_bins: self.num_bins,
             value_area_percent: self.value_area_percent,
         };
-        batch.calculate(&self.candles)
+        batch.calculate_bars(&self.bars)
     }
-}
 
-impl StreamingIndicator<OHLCV, FrvpOutput> for FrvpStream {
-    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<FrvpOutput>> {
-        for candle in data {
-            validate_frvp_candle(candle)?;
+    /// Initializes the stream from native high/low/volume bars.
+    pub fn init_bars(&mut self, data: &[FrvpBar]) -> IndicatorResult<Vec<FrvpOutput>> {
+        for bar in data {
+            validate_frvp_bar(bar)?;
         }
 
-        self.candles = data.to_vec();
+        self.bars = data.to_vec();
         self.initialized = !data.is_empty();
 
-        // Return a single result for the entire range
         if self.initialized {
             Ok(vec![self.recalculate()?])
         } else {
@@ -483,23 +526,35 @@ impl StreamingIndicator<OHLCV, FrvpOutput> for FrvpStream {
         }
     }
 
-    fn next(&mut self, candle: OHLCV) -> Option<FrvpOutput> {
-        if validate_frvp_candle(&candle).is_err() {
+    /// Processes one native high/low/volume bar.
+    pub fn next_bar(&mut self, bar: FrvpBar) -> Option<FrvpOutput> {
+        if validate_frvp_bar(&bar).is_err() {
             return None;
         }
 
-        self.candles.push(candle);
+        self.bars.push(bar);
         self.initialized = true;
         self.recalculate().ok()
     }
+}
+
+impl StreamingIndicator<OHLCV, FrvpOutput> for FrvpStream {
+    fn init(&mut self, data: &[OHLCV]) -> IndicatorResult<Vec<FrvpOutput>> {
+        let bars: Vec<FrvpBar> = data.iter().copied().map(FrvpBar::from).collect();
+        self.init_bars(&bars)
+    }
+
+    fn next(&mut self, candle: OHLCV) -> Option<FrvpOutput> {
+        self.next_bar(candle.into())
+    }
 
     fn reset(&mut self) {
-        self.candles.clear();
+        self.bars.clear();
         self.initialized = false;
     }
 
     fn is_ready(&self) -> bool {
-        self.initialized && !self.candles.is_empty()
+        self.initialized && !self.bars.is_empty()
     }
 }
 
@@ -542,6 +597,22 @@ mod tests {
 
         assert_eq!(result.histogram.len(), 5);
         assert!((result.total_volume - 1000.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_frvp_bars_match_ohlcv_calculation() {
+        let candles = vec![
+            make_candle(105.0, 100.0, 102.0, 1000.0),
+            make_candle(110.0, 105.0, 108.0, 2000.0),
+            make_candle(108.0, 102.0, 105.0, 1500.0),
+        ];
+        let bars: Vec<FrvpBar> = candles.iter().copied().map(FrvpBar::from).collect();
+        let frvp = Frvp::new(10).unwrap();
+
+        let from_candles = frvp.calculate(&candles).unwrap();
+        let from_bars = frvp.calculate_bars(&bars).unwrap();
+
+        assert_eq!(from_candles, from_bars);
     }
 
     #[test]

@@ -1,0 +1,19 @@
+[package]
+name = "ta-native"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "NAPI-RS bindings for ta-core"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi1", "dyn-symbols"] }
+napi-derive = "3"
+ta-core = { path = "../ta-core", default-features = false }
+
+[build-dependencies]
+napi-build = "2"

@@ -1,5 +1,7 @@
 node_modules/
 target/
 dist/
+native/
+pkg/
 *.node
 *.tsbuildinfo
