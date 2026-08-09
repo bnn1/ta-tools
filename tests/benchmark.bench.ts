@@ -568,6 +568,77 @@ function measure(operation: () => unknown): () => void {
   };
 }
 
+function scalarOutput(size: number): Float64Array {
+  return new Float64Array(size);
+}
+
+function macdOutput(size: number): napi.MacdOutput {
+  return {
+    macd: scalarOutput(size),
+    signal: scalarOutput(size),
+    histogram: scalarOutput(size),
+  };
+}
+
+function bbandsOutput(size: number): napi.BBandsOutput {
+  return {
+    upper: scalarOutput(size),
+    middle: scalarOutput(size),
+    lower: scalarOutput(size),
+    percentB: scalarOutput(size),
+    bandwidth: scalarOutput(size),
+  };
+}
+
+function stochOutput(size: number): napi.StochOutput {
+  return { k: scalarOutput(size), d: scalarOutput(size) };
+}
+
+function stochRsiOutput(size: number): napi.StochRsiOutput {
+  return { k: scalarOutput(size), d: scalarOutput(size) };
+}
+
+function adxOutput(size: number): napi.AdxOutput {
+  return {
+    adx: scalarOutput(size),
+    plusDi: scalarOutput(size),
+    minusDi: scalarOutput(size),
+  };
+}
+
+function ichimokuOutput(size: number): napi.IchimokuOutput {
+  return {
+    tenkanSen: scalarOutput(size),
+    kijunSen: scalarOutput(size),
+    senkouSpanA: scalarOutput(size),
+    senkouSpanB: scalarOutput(size),
+    chikouSpan: scalarOutput(size),
+  };
+}
+
+function linregOutput(size: number): napi.LinRegOutput {
+  return {
+    value: scalarOutput(size),
+    upper: scalarOutput(size),
+    lower: scalarOutput(size),
+    slope: scalarOutput(size),
+    r: scalarOutput(size),
+    rSquared: scalarOutput(size),
+  };
+}
+
+function pivotBatchOutput(size: number): napi.PivotBatchOutput {
+  return {
+    pivot: scalarOutput(size),
+    r1: scalarOutput(size),
+    r2: scalarOutput(size),
+    r3: scalarOutput(size),
+    s1: scalarOutput(size),
+    s2: scalarOutput(size),
+    s3: scalarOutput(size),
+  };
+}
+
 function registerBatch(
   indicator: string,
   build: (dataset: Dataset) => readonly BenchmarkOperation[],
@@ -631,16 +702,20 @@ function signalMacd(): SignalIndicator<number> {
   );
 }
 
-const priceBatch = (
-  native: (dataset: Dataset) => unknown,
+const priceBatch = <Output>(
+  native: (dataset: Dataset, output: Output) => unknown,
   wasmOperation: (dataset: Dataset) => unknown,
   fastOperation?: (dataset: Dataset) => unknown,
   indicatortsOperation?: (dataset: Dataset) => unknown,
   signalsFactory?: () => SignalIndicator<number>,
+  outputFactory?: (dataset: Dataset) => Output,
 ): ((dataset: Dataset) => readonly BenchmarkOperation[]) => {
   return (dataset) => {
+    const output = outputFactory
+      ? outputFactory(dataset)
+      : (new Float64Array(dataset.size) as Output);
     const operations: BenchmarkOperation[] = [
-      ["ta-tools (NAPI)", measure(() => native(dataset))],
+      ["ta-tools (NAPI)", measure(() => native(dataset, output))],
       ["ta-tools (WASM)", measure(() => wasmOperation(dataset))],
     ];
     if (fastOperation) {
@@ -661,8 +736,8 @@ const priceBatch = (
 
 registerBatch(
   "SMA",
-  priceBatch(
-    (d) => napi.sma(d.prices, { period: 14 }),
+  priceBatch<Float64Array>(
+    (d, output) => napi.sma(d.prices, { period: 14 }, output),
     (d) => wasm.sma(d.prices.values, 14),
     (d) => fast.sma({ period: 14, values: d.priceValues }),
     (d) => indicatorTs.sma(d.priceValues, { period: 14 }),
@@ -672,8 +747,8 @@ registerBatch(
 
 registerBatch(
   "EMA",
-  priceBatch(
-    (d) => napi.ema(d.prices, { period: 14 }),
+  priceBatch<Float64Array>(
+    (d, output) => napi.ema(d.prices, { period: 14 }, output),
     (d) => wasm.ema(d.prices.values, 14),
     (d) => fast.ema({ period: 14, values: d.priceValues }),
     (d) => indicatorTs.ema(d.priceValues, { period: 14 }),
@@ -683,8 +758,8 @@ registerBatch(
 
 registerBatch(
   "WMA",
-  priceBatch(
-    (d) => napi.wma(d.prices, { period: 14 }),
+  priceBatch<Float64Array>(
+    (d, output) => napi.wma(d.prices, { period: 14 }, output),
     (d) => wasm.wma(d.prices.values, 14),
     (d) => fast.wma({ period: 14, values: d.priceValues }),
     undefined,
@@ -694,8 +769,8 @@ registerBatch(
 
 registerBatch(
   "RSI",
-  priceBatch(
-    (d) => napi.rsi(d.prices, { period: 14 }),
+  priceBatch<Float64Array>(
+    (d, output) => napi.rsi(d.prices, { period: 14 }, output),
     (d) => wasm.rsi(d.prices.values, 14),
     (d) => fast.rsi({ period: 14, values: d.priceValues }),
     (d) => indicatorTs.rsi(d.priceValues, { period: 14 }),
@@ -705,8 +780,8 @@ registerBatch(
 
 registerBatch(
   "HMA",
-  priceBatch(
-    (d) => napi.hma(d.prices, { period: 14 }),
+  priceBatch<Float64Array>(
+    (d, output) => napi.hma(d.prices, { period: 14 }, output),
     (d) => wasm.hma(d.prices.values, 14),
     undefined,
     undefined,
@@ -714,12 +789,17 @@ registerBatch(
   ),
 );
 
-registerBatch("CVD", (dataset) => [
-  ["ta-tools (NAPI)", measure(() => napi.cvd(dataset.prices))],
+registerBatch("CVD", (dataset) => {
+  const output = scalarOutput(dataset.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.cvd(dataset.prices, output))],
   ["ta-tools (WASM)", measure(() => wasm.cvd(dataset.prices.values))],
-]);
+  ];
+});
 
-registerBatch("MACD · EMA signal", (d) => [
+registerBatch("MACD · EMA signal", (d) => {
+  const output = macdOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
     measure(() =>
@@ -728,7 +808,7 @@ registerBatch("MACD · EMA signal", (d) => [
         slowPeriod: 26,
         signalPeriod: 9,
         signalType: "ema",
-      }),
+      }, output),
     ),
   ],
   ["ta-tools (WASM)", measure(() => wasm.macd(d.prices.values, 12, 26, 9))],
@@ -753,9 +833,12 @@ registerBatch("MACD · EMA signal", (d) => [
     "trading-signals",
     measure(() => signalBatch(signalMacd, d.priceValues)),
   ],
-]);
+  ];
+});
 
-registerBatch("MACD · SMA signal", (d) => [
+registerBatch("MACD · SMA signal", (d) => {
+  const output = macdOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
     measure(() =>
@@ -764,7 +847,7 @@ registerBatch("MACD · SMA signal", (d) => [
         slowPeriod: 26,
         signalPeriod: 9,
         signalType: "sma",
-      }),
+      }, output),
     ),
   ],
   [
@@ -780,23 +863,27 @@ registerBatch("MACD · SMA signal", (d) => [
       }),
     ),
   ],
-]);
+  ];
+});
 
 registerBatch(
   "Bollinger Bands",
-  priceBatch(
-    (d) => napi.bbands(d.prices, { period: 20, k: 2 }),
+  priceBatch<napi.BBandsOutput>(
+    (d, output) => napi.bbands(d.prices, { period: 20, k: 2 }, output),
     (d) => wasm.bbands(d.prices.values, 20, 2),
     (d) => fast.bollingerbands({ period: 20, stdDev: 2, values: d.priceValues }),
     (d) => indicatorTs.bb(d.priceValues, { period: 20 }),
     () => new SignalsBollingerBands(20, 2),
+    (d) => bbandsOutput(d.size),
   ),
 );
 
-registerBatch("Stochastic · fast", (d) => [
+registerBatch("Stochastic · fast", (d) => {
+  const output = stochOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
-    measure(() => napi.stoch(d.hlc, { type: "fast", kPeriod: 14, dPeriod: 3 })),
+    measure(() => napi.stoch(d.hlc, { type: "fast", kPeriod: 14, dPeriod: 3 }, output)),
   ],
   [
     "ta-tools (WASM)",
@@ -837,9 +924,12 @@ registerBatch("Stochastic · fast", (d) => [
       ),
     ),
   ],
-]);
+  ];
+});
 
-registerBatch("Stochastic · slow", (d) => [
+registerBatch("Stochastic · slow", (d) => {
+  const output = stochOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
     measure(() =>
@@ -848,7 +938,7 @@ registerBatch("Stochastic · slow", (d) => [
         kPeriod: 14,
         dPeriod: 3,
         slowing: 3,
-      }),
+      }, output),
     ),
   ],
   [
@@ -869,9 +959,12 @@ registerBatch("Stochastic · slow", (d) => [
       ),
     ),
   ],
-]);
+  ];
+});
 
-registerBatch("Stochastic RSI", (d) => [
+registerBatch("Stochastic RSI", (d) => {
+  const output = stochRsiOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
     measure(() =>
@@ -880,7 +973,7 @@ registerBatch("Stochastic RSI", (d) => [
         stochPeriod: 14,
         kSmooth: 3,
         dPeriod: 3,
-      }),
+      }, output),
     ),
   ],
   [
@@ -903,10 +996,13 @@ registerBatch("Stochastic RSI", (d) => [
     "trading-signals",
     measure(() => signalBatch(() => new SignalsStochasticRsi(14), d.priceValues)),
   ],
-]);
+  ];
+});
 
-registerBatch("ATR", (d) => [
-  ["ta-tools (NAPI)", measure(() => napi.atr(d.hlc, { period: 14 }))],
+registerBatch("ATR", (d) => {
+  const output = scalarOutput(d.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.atr(d.hlc, { period: 14 }, output))],
   ["ta-tools (WASM)", measure(() => wasm.atr(d.hlc.high, d.hlc.low, d.hlc.close, 14))],
   [
     "fast-technical-indicators",
@@ -920,10 +1016,13 @@ registerBatch("ATR", (d) => [
     "trading-signals",
     measure(() => signalBatch(() => new SignalsAtr(14), d.candles)),
   ],
-]);
+  ];
+});
 
-registerBatch("MFI", (d) => [
-  ["ta-tools (NAPI)", measure(() => napi.mfi(d.hlcv, { period: 14 }))],
+registerBatch("MFI", (d) => {
+  const output = scalarOutput(d.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.mfi(d.hlcv, { period: 14 }, output))],
   [
     "ta-tools (WASM)",
     measure(() => wasm.mfi(d.hlc.high, d.hlc.low, d.hlc.close, d.hlcv.volume, 14)),
@@ -952,18 +1051,24 @@ registerBatch("MFI", (d) => [
     "trading-signals",
     measure(() => signalBatch(() => new SignalsMfi(14), d.volumeCandles)),
   ],
-]);
+  ];
+});
 
-registerBatch("CVD · OHLCV", (d) => [
-  ["ta-tools (NAPI)", measure(() => napi.cvdOhlcv(d.hlcv))],
+registerBatch("CVD · OHLCV", (d) => {
+  const output = scalarOutput(d.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.cvdOhlcv(d.hlcv, output))],
   [
     "ta-tools (WASM)",
     measure(() => wasm.cvdOhlcv(d.hlc.high, d.hlc.low, d.hlc.close, d.hlcv.volume)),
   ],
-]);
+  ];
+});
 
-registerBatch("ADX", (d) => [
-  ["ta-tools (NAPI)", measure(() => napi.adx(d.hlc, { period: 14 }))],
+registerBatch("ADX", (d) => {
+  const output = adxOutput(d.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.adx(d.hlc, { period: 14 }, output))],
   ["ta-tools (WASM)", measure(() => wasm.adx(d.hlc.high, d.hlc.low, d.hlc.close, 14))],
   [
     "fast-technical-indicators",
@@ -973,9 +1078,12 @@ registerBatch("ADX", (d) => [
     "trading-signals",
     measure(() => signalBatch(() => new SignalsAdx(14), d.candles)),
   ],
-]);
+  ];
+});
 
-registerBatch("Ichimoku", (d) => [
+registerBatch("Ichimoku", (d) => {
+  const output = ichimokuOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
     measure(() =>
@@ -983,7 +1091,7 @@ registerBatch("Ichimoku", (d) => [
         tenkanPeriod: 9,
         kijunPeriod: 26,
         senkouBPeriod: 52,
-      }),
+      }, output),
     ),
   ],
   [
@@ -1014,10 +1122,13 @@ registerBatch("Ichimoku", (d) => [
       }),
     ),
   ],
-]);
+  ];
+});
 
-registerBatch("Linear Regression", (d) => [
-  ["ta-tools (NAPI)", measure(() => napi.linreg(d.prices, { period: 14, numStdDev: 2 }))],
+registerBatch("Linear Regression", (d) => {
+  const output = linregOutput(d.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.linreg(d.prices, { period: 14, numStdDev: 2 }, output))],
   ["ta-tools (WASM)", measure(() => wasm.linreg(d.prices.values, 14, 2))],
   [
     "fast-technical-indicators",
@@ -1037,10 +1148,13 @@ registerBatch("Linear Regression", (d) => [
     "trading-signals",
     measure(() => signalBatch(() => new SignalsLinearRegression(14), d.priceValues)),
   ],
-]);
+  ];
+});
 
-registerBatch("Session VWAP · one session", (d) => [
-  ["ta-tools (NAPI)", measure(() => napi.sessionVwap(d.timestamped))],
+registerBatch("Session VWAP · one session", (d) => {
+  const output = scalarOutput(d.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.sessionVwap(d.timestamped, output))],
   [
     "ta-tools (WASM)",
     measure(() =>
@@ -1066,10 +1180,13 @@ registerBatch("Session VWAP · one session", (d) => [
     "trading-signals",
     measure(() => signalBatch(() => new SignalsVwap(), d.volumeCandles)),
   ],
-]);
+  ];
+});
 
-registerBatch("Rolling VWAP", (d) => [
-  ["ta-tools (NAPI)", measure(() => napi.rollingVwap(d.timestamped, { period: 14 }))],
+registerBatch("Rolling VWAP", (d) => {
+  const output = scalarOutput(d.size);
+  return [
+  ["ta-tools (NAPI)", measure(() => napi.rollingVwap(d.timestamped, { period: 14 }, output))],
   [
     "ta-tools (WASM)",
     measure(() =>
@@ -1088,12 +1205,15 @@ registerBatch("Rolling VWAP", (d) => [
     "indicatorts · close/volume rolling",
     measure(() => indicatorTs.vwap(d.closeValues, d.volumeValues, { period: 14 })),
   ],
-]);
+  ];
+});
 
-registerBatch("Anchored VWAP · index", (d) => [
+registerBatch("Anchored VWAP · index", (d) => {
+  const output = scalarOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
-    measure(() => napi.anchoredVwap(d.timestamped, { anchorIndex: d.anchorIndex })),
+    measure(() => napi.anchoredVwap(d.timestamped, { anchorIndex: d.anchorIndex }, output)),
   ],
   [
     "ta-tools (WASM)",
@@ -1109,15 +1229,18 @@ registerBatch("Anchored VWAP · index", (d) => [
       ),
     ),
   ],
-]);
+  ];
+});
 
-registerBatch("Anchored VWAP · timestamp", (d) => [
+registerBatch("Anchored VWAP · timestamp", (d) => {
+  const output = scalarOutput(d.size);
+  return [
   [
     "ta-tools (NAPI)",
     measure(() =>
       napi.anchoredVwapFromTimestamp(d.timestamped, {
         anchorTimestamp: d.anchorTimestamp,
-      }),
+      }, output),
     ),
   ],
   [
@@ -1134,13 +1257,16 @@ registerBatch("Anchored VWAP · timestamp", (d) => [
       ),
     ),
   ],
-]);
+  ];
+});
 
 for (const variant of ["standard", "fibonacci", "woodie"] as const) {
-  registerBatch(`Pivot Points Batch · ${variant}`, (d) => [
+  registerBatch(`Pivot Points Batch · ${variant}`, (d) => {
+    const output = pivotBatchOutput(d.size);
+    return [
     [
       "ta-tools (NAPI)",
-      measure(() => napi.pivotPointsBatch(d.hlc, { variant })),
+      measure(() => napi.pivotPointsBatch(d.hlc, { variant }, output)),
     ],
     [
       "ta-tools (WASM)",
@@ -1157,7 +1283,8 @@ for (const variant of ["standard", "fibonacci", "woodie"] as const) {
         }),
       ),
     ],
-  ]);
+    ];
+  });
 }
 
 registerBatch("FRVP · 100 bins", (d) => [
@@ -1225,39 +1352,62 @@ function registerStreaming(
   }
 }
 
-function nativePriceStream(
+function nativePriceStream<InitOutput, NextOutput>(
   dataset: Dataset,
-  create: () => { init(series: { values: Float64Array }): unknown; next(value: number): unknown },
+  create: () => {
+    init(series: { values: Float64Array }, output: InitOutput): unknown;
+    nextInto(value: number, output: NextOutput): unknown;
+  },
+  initOutput: InitOutput,
+  nextOutput: NextOutput,
 ): { stream: ReturnType<typeof create>; next: () => unknown } {
   const stream = create();
-  stream.init(dataset.prices);
-  return { stream, next: () => stream.next(101) };
+  stream.init(dataset.prices, initOutput);
+  return { stream, next: () => stream.nextInto(101, nextOutput) };
 }
 
-function nativeHlcStream(
+function nativeHlcStream<InitOutput, NextOutput>(
   dataset: Dataset,
-  create: () => { init(series: Dataset["hlc"]): unknown; next(bar: { high: number; low: number; close: number }): unknown },
+  create: () => {
+    init(series: Dataset["hlc"], output: InitOutput): unknown;
+    nextInto(
+      bar: { high: number; low: number; close: number },
+      output: NextOutput,
+    ): unknown;
+  },
+  initOutput: InitOutput,
+  nextOutput: NextOutput,
 ): { stream: ReturnType<typeof create>; next: () => unknown } {
   const stream = create();
-  stream.init(dataset.hlc);
+  stream.init(dataset.hlc, initOutput);
   return {
     stream,
-    next: () => stream.next({ high: 102, low: 100, close: 101 }),
+    next: () =>
+      stream.nextInto({ high: 102, low: 100, close: 101 }, nextOutput),
   };
 }
 
-function nativeHlcvStream(
+function nativeHlcvStream<InitOutput, NextOutput>(
   dataset: Dataset,
   create: () => {
-    init(series: Dataset["hlcv"]): unknown;
-    next(bar: { high: number; low: number; close: number; volume: number }): unknown;
+    init(series: Dataset["hlcv"], output: InitOutput): unknown;
+    nextInto(
+      bar: { high: number; low: number; close: number; volume: number },
+      output: NextOutput,
+    ): unknown;
   },
+  initOutput: InitOutput,
+  nextOutput: NextOutput,
 ): { stream: ReturnType<typeof create>; next: () => unknown } {
   const stream = create();
-  stream.init(dataset.hlcv);
+  stream.init(dataset.hlcv, initOutput);
   return {
     stream,
-    next: () => stream.next({ high: 102, low: 100, close: 101, volume: 1_000 }),
+    next: () =>
+      stream.nextInto(
+        { high: 102, low: 100, close: 101, volume: 1_000 },
+        nextOutput,
+      ),
   };
 }
 
@@ -1272,7 +1422,12 @@ function signalPriceStream<Input>(
 }
 
 registerStreaming("SMA", (d) => {
-  const native = nativePriceStream(d, () => new napi.SmaStream({ period: 14 }));
+  const native = nativePriceStream(
+    d,
+    () => new napi.SmaStream({ period: 14 }),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.SmaStream(14);
   old.init(d.prices.values);
   const fastStream = new fast.SMA({ period: 14, values: d.priceValues });
@@ -1285,7 +1440,12 @@ registerStreaming("SMA", (d) => {
 });
 
 registerStreaming("EMA", (d) => {
-  const native = nativePriceStream(d, () => new napi.EmaStream({ period: 14 }));
+  const native = nativePriceStream(
+    d,
+    () => new napi.EmaStream({ period: 14 }),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.EmaStream(14);
   old.init(d.prices.values);
   const fastStream = new fast.EMA({ period: 14, values: d.priceValues });
@@ -1298,7 +1458,12 @@ registerStreaming("EMA", (d) => {
 });
 
 registerStreaming("WMA", (d) => {
-  const native = nativePriceStream(d, () => new napi.WmaStream({ period: 14 }));
+  const native = nativePriceStream(
+    d,
+    () => new napi.WmaStream({ period: 14 }),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.WmaStream(14);
   old.init(d.prices.values);
   const fastStream = new fast.WMA({ period: 14, values: d.priceValues });
@@ -1311,7 +1476,12 @@ registerStreaming("WMA", (d) => {
 });
 
 registerStreaming("RSI", (d) => {
-  const native = nativePriceStream(d, () => new napi.RsiStream({ period: 14 }));
+  const native = nativePriceStream(
+    d,
+    () => new napi.RsiStream({ period: 14 }),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.RsiStream(14);
   old.init(d.prices.values);
   const fastStream = new fast.RSI({ period: 14, values: d.priceValues });
@@ -1324,7 +1494,12 @@ registerStreaming("RSI", (d) => {
 });
 
 registerStreaming("HMA", (d) => {
-  const native = nativePriceStream(d, () => new napi.HmaStream({ period: 14 }));
+  const native = nativePriceStream(
+    d,
+    () => new napi.HmaStream({ period: 14 }),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.HmaStream(14);
   old.init(d.prices.values);
   return [
@@ -1335,7 +1510,12 @@ registerStreaming("HMA", (d) => {
 });
 
 registerStreaming("CVD", (d) => {
-  const native = nativePriceStream(d, () => new napi.CvdStream());
+  const native = nativePriceStream(
+    d,
+    () => new napi.CvdStream(),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.CvdStream();
   old.init(d.prices.values);
   return [
@@ -1352,6 +1532,8 @@ registerStreaming("MACD · EMA signal", (d) => {
       signalPeriod: 9,
       signalType: "ema",
     }),
+    macdOutput(d.size),
+    macdOutput(1),
   );
   const old = new wasm.MacdStream(12, 26, 9);
   old.init(d.prices.values);
@@ -1379,6 +1561,8 @@ registerStreaming("MACD · SMA signal", (d) => {
       signalPeriod: 9,
       signalType: "sma",
     }),
+    macdOutput(d.size),
+    macdOutput(1),
   );
   const fastStream = new fast.MACD({
     values: d.priceValues,
@@ -1395,7 +1579,12 @@ registerStreaming("MACD · SMA signal", (d) => {
 });
 
 registerStreaming("Bollinger Bands", (d) => {
-  const native = nativePriceStream(d, () => new napi.BBandsStream({ period: 20, k: 2 }));
+  const native = nativePriceStream(
+    d,
+    () => new napi.BBandsStream({ period: 20, k: 2 }),
+    bbandsOutput(d.size),
+    bbandsOutput(1),
+  );
   const old = new wasm.BBandsStream(20, 2);
   old.init(d.prices.values);
   const fastStream = new fast.BollingerBands({ period: 20, stdDev: 2, values: d.priceValues });
@@ -1408,7 +1597,12 @@ registerStreaming("Bollinger Bands", (d) => {
 });
 
 registerStreaming("Stochastic · fast", (d) => {
-  const native = nativeHlcStream(d, () => new napi.StochStream({ type: "fast", kPeriod: 14, dPeriod: 3 }));
+  const native = nativeHlcStream(
+    d,
+    () => new napi.StochStream({ type: "fast", kPeriod: 14, dPeriod: 3 }),
+    stochOutput(d.size),
+    stochOutput(1),
+  );
   const old = new wasm.StochFastStream(14, 3);
   old.init(d.hlc.high, d.hlc.low, d.hlc.close);
   const fastStream = new fast.Stochastic({
@@ -1429,7 +1623,18 @@ registerStreaming("Stochastic · fast", (d) => {
 });
 
 registerStreaming("Stochastic · slow", (d) => {
-  const native = nativeHlcStream(d, () => new napi.StochStream({ type: "slow", kPeriod: 14, dPeriod: 3, slowing: 3 }));
+  const native = nativeHlcStream(
+    d,
+    () =>
+      new napi.StochStream({
+        type: "slow",
+        kPeriod: 14,
+        dPeriod: 3,
+        slowing: 3,
+      }),
+    stochOutput(d.size),
+    stochOutput(1),
+  );
   const old = new wasm.StochSlowStream(14, 3, 3);
   old.init(d.hlc.high, d.hlc.low, d.hlc.close);
   const signalsStream = new SignalsStochastic({ kPeriod: 14, dPeriod: 3, kSlowingPeriod: 3 });
@@ -1442,7 +1647,18 @@ registerStreaming("Stochastic · slow", (d) => {
 });
 
 registerStreaming("Stochastic RSI", (d) => {
-  const native = nativePriceStream(d, () => new napi.StochRsiStream({ rsiPeriod: 14, stochPeriod: 14, kSmooth: 3, dPeriod: 3 }));
+  const native = nativePriceStream(
+    d,
+    () =>
+      new napi.StochRsiStream({
+        rsiPeriod: 14,
+        stochPeriod: 14,
+        kSmooth: 3,
+        dPeriod: 3,
+      }),
+    stochRsiOutput(d.size),
+    stochRsiOutput(1),
+  );
   const old = new wasm.StochRsiStream(14, 14, 3, 3);
   old.init(d.prices.values);
   const fastStream = new fast.StochasticRSI({
@@ -1463,7 +1679,12 @@ registerStreaming("Stochastic RSI", (d) => {
 });
 
 registerStreaming("ATR", (d) => {
-  const native = nativeHlcStream(d, () => new napi.AtrStream({ period: 14 }));
+  const native = nativeHlcStream(
+    d,
+    () => new napi.AtrStream({ period: 14 }),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.AtrStream(14);
   old.init(d.hlc.high, d.hlc.low, d.hlc.close);
   const fastStream = new fast.ATR({ period: 14, high: d.highValues, low: d.lowValues, close: d.closeValues });
@@ -1478,7 +1699,12 @@ registerStreaming("ATR", (d) => {
 });
 
 registerStreaming("MFI", (d) => {
-  const native = nativeHlcvStream(d, () => new napi.MfiStream({ period: 14 }));
+  const native = nativeHlcvStream(
+    d,
+    () => new napi.MfiStream({ period: 14 }),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.MfiStream(14);
   old.init(d.hlc.high, d.hlc.low, d.hlc.close, d.hlcv.volume);
   const fastStream = new fast.MFI({ period: 14, high: d.highValues, low: d.lowValues, close: d.closeValues, volume: d.volumeValues });
@@ -1493,7 +1719,12 @@ registerStreaming("MFI", (d) => {
 });
 
 registerStreaming("CVD · OHLCV", (d) => {
-  const native = nativeHlcvStream(d, () => new napi.CvdOhlcvStream());
+  const native = nativeHlcvStream(
+    d,
+    () => new napi.CvdOhlcvStream(),
+    scalarOutput(d.size),
+    scalarOutput(1),
+  );
   const old = new wasm.CvdOhlcvStream();
   old.init(d.hlc.high, d.hlc.low, d.hlc.close, d.hlcv.volume);
   return [
@@ -1503,7 +1734,12 @@ registerStreaming("CVD · OHLCV", (d) => {
 });
 
 registerStreaming("ADX", (d) => {
-  const native = nativeHlcStream(d, () => new napi.AdxStream({ period: 14 }));
+  const native = nativeHlcStream(
+    d,
+    () => new napi.AdxStream({ period: 14 }),
+    adxOutput(d.size),
+    adxOutput(1),
+  );
   const old = new wasm.AdxStream(14);
   old.init(d.hlc.high, d.hlc.low, d.hlc.close);
   const fastStream = new fast.ADX({ period: 14, high: d.highValues, low: d.lowValues, close: d.closeValues });
@@ -1518,7 +1754,17 @@ registerStreaming("ADX", (d) => {
 });
 
 registerStreaming("Ichimoku", (d) => {
-  const native = nativeHlcStream(d, () => new napi.IchimokuStream({ tenkanPeriod: 9, kijunPeriod: 26, senkouBPeriod: 52 }));
+  const native = nativeHlcStream(
+    d,
+    () =>
+      new napi.IchimokuStream({
+        tenkanPeriod: 9,
+        kijunPeriod: 26,
+        senkouBPeriod: 52,
+      }),
+    ichimokuOutput(d.size),
+    ichimokuOutput(1),
+  );
   const old = new wasm.IchimokuStream(9, 26, 52);
   old.init(d.hlc.high, d.hlc.low, d.hlc.close);
   const fastStream = new fast.IchimokuCloud({
@@ -1537,7 +1783,12 @@ registerStreaming("Ichimoku", (d) => {
 });
 
 registerStreaming("Linear Regression", (d) => {
-  const native = nativePriceStream(d, () => new napi.LinRegStream({ period: 14, numStdDev: 2 }));
+  const native = nativePriceStream(
+    d,
+    () => new napi.LinRegStream({ period: 14, numStdDev: 2 }),
+    linregOutput(d.size),
+    linregOutput(1),
+  );
   const old = new wasm.LinRegStream(14, 2);
   old.init(d.prices.values);
   const fastStream = new fast.LinearRegression({ period: 14, values: d.priceValues });
@@ -1553,14 +1804,16 @@ registerStreaming("Linear Regression", (d) => {
 
 registerStreaming("Session VWAP", (d) => {
   const native = new napi.SessionVwapStream();
-  native.init(d.timestamped);
+  const nativeOutput = scalarOutput(d.size);
+  const nativeNextOutput = scalarOutput(1);
+  native.init(d.timestamped, nativeOutput);
   const old = new wasm.SessionVwapStream();
   old.init(d.timestamps, d.open, d.hlc.high, d.hlc.low, d.hlc.close, d.hlcv.volume);
   const fastStream = new fast.VWAP({ high: d.highValues, low: d.lowValues, close: d.closeValues, volume: d.volumeValues });
   const signalsStream = new SignalsVwap();
   primeSignal(signalsStream, d.volumeCandles);
   return [
-    ["ta-tools (NAPI)", measure(() => native.next({ timestamp: d.timestamps[d.size - 1] + 500, high: 102, low: 100, close: 101, volume: 1_000 }))],
+    ["ta-tools (NAPI)", measure(() => native.nextInto({ timestamp: d.timestamps[d.size - 1] + 500, high: 102, low: 100, close: 101, volume: 1_000 }, nativeNextOutput))],
     ["ta-tools (WASM)", measure(() => old.next(d.timestamps[d.size - 1] + 500, 100.9, 102, 100, 101, 1_000))],
     ["fast-technical-indicators", measure(() => fastStream.nextValue(102, 100, 101, 1_000))],
     ["trading-signals", measure(() => signalsStream.add({ high: 102, low: 100, close: 101, volume: 1_000 }))],
@@ -1569,22 +1822,26 @@ registerStreaming("Session VWAP", (d) => {
 
 registerStreaming("Rolling VWAP", (d) => {
   const native = new napi.RollingVwapStream({ period: 14 });
-  native.init(d.timestamped);
+  const nativeOutput = scalarOutput(d.size);
+  const nativeNextOutput = scalarOutput(1);
+  native.init(d.timestamped, nativeOutput);
   const old = new wasm.RollingVwapStream(14);
   old.init(d.timestamps, d.open, d.hlc.high, d.hlc.low, d.hlc.close, d.hlcv.volume);
   return [
-    ["ta-tools (NAPI)", measure(() => native.next({ timestamp: d.timestamps[d.size - 1] + 500, high: 102, low: 100, close: 101, volume: 1_000 }))],
+    ["ta-tools (NAPI)", measure(() => native.nextInto({ timestamp: d.timestamps[d.size - 1] + 500, high: 102, low: 100, close: 101, volume: 1_000 }, nativeNextOutput))],
     ["ta-tools (WASM)", measure(() => old.next(d.timestamps[d.size - 1] + 500, 100.9, 102, 100, 101, 1_000))],
   ];
 });
 
 registerStreaming("Anchored VWAP", (d) => {
   const native = new napi.AnchoredVwapStream({ anchorTimestamp: d.anchorTimestamp });
-  native.init(d.timestamped);
+  const nativeOutput = scalarOutput(d.size);
+  const nativeNextOutput = scalarOutput(1);
+  native.init(d.timestamped, nativeOutput);
   const old = wasm.AnchoredVwapStream.withAnchor(d.anchorTimestamp);
   old.init(d.timestamps, d.open, d.hlc.high, d.hlc.low, d.hlc.close, d.hlcv.volume);
   return [
-    ["ta-tools (NAPI)", measure(() => native.next({ timestamp: d.timestamps[d.size - 1] + 500, high: 102, low: 100, close: 101, volume: 1_000 }))],
+    ["ta-tools (NAPI)", measure(() => native.nextInto({ timestamp: d.timestamps[d.size - 1] + 500, high: 102, low: 100, close: 101, volume: 1_000 }, nativeNextOutput))],
     ["ta-tools (WASM)", measure(() => old.next(d.timestamps[d.size - 1] + 500, 100.9, 102, 100, 101, 1_000))],
   ];
 });

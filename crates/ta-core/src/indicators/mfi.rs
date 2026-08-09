@@ -31,7 +31,7 @@
 //! // Note: Need more data for period=14
 //! ```
 
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// MFI calculator for batch operations.
@@ -78,39 +78,13 @@ impl Indicator<&MfiInput<'_>, Vec<f64>> for Mfi {
             ));
         }
 
-        let mut result = vec![f64::NAN; len];
-
-        if len <= self.period {
-            return Ok(result);
-        }
-
-        // Calculate typical prices
-        let typical_prices: Vec<f64> = (0..len)
-            .map(|i| (highs[i] + lows[i] + closes[i]) / 3.0)
-            .collect();
-
-        // Calculate raw money flows and classify as positive/negative
-        let mut positive_flows = vec![0.0; len];
-        let mut negative_flows = vec![0.0; len];
-
-        for i in 1..len {
-            let raw_flow = typical_prices[i] * volumes[i];
-            if typical_prices[i] > typical_prices[i - 1] {
-                positive_flows[i] = raw_flow;
-            } else if typical_prices[i] < typical_prices[i - 1] {
-                negative_flows[i] = raw_flow;
-            }
-            // If equal, neither positive nor negative
-        }
-
-        // Calculate MFI for each valid position
-        for i in self.period..len {
-            let pos_sum: f64 = positive_flows[(i + 1 - self.period)..=i].iter().sum();
-            let neg_sum: f64 = negative_flows[(i + 1 - self.period)..=i].iter().sum();
-            result[i] = calculate_mfi(pos_sum, neg_sum);
-        }
-
-        Ok(result)
+        let mut stream = MfiStream::new(self.period)?;
+        collect_stream(
+            &mut stream,
+            len,
+            |index| (highs[index], lows[index], closes[index], volumes[index]),
+            || f64::NAN,
+        )
     }
 }
 

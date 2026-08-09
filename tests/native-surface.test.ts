@@ -310,6 +310,10 @@ describe("native binding surface", () => {
       native.stoch(highs, lows, closes, 2, 2, 3, "unknown"),
     ).toThrow(/stochType/);
     expect(() => native.sma(prices, 0)).toThrow(/Invalid parameter/);
+    expect(() => native.smaInto(prices, 2, new Float64Array(2))).toThrow(
+      /expected/,
+    );
+    expect(() => native.smaInto(prices, 2, prices)).toThrow(/overlaps input/);
 
     const stream = new native.SessionVwapStream();
     expect(stream.current()).toBeNull();

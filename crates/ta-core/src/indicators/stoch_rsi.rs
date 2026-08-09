@@ -13,7 +13,7 @@
 use std::collections::VecDeque;
 
 use crate::indicators::RsiStream;
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// Stochastic RSI output values.
@@ -118,92 +118,21 @@ impl StochRsi {
 
 impl Indicator<&[f64], Vec<StochRsiOutput>> for StochRsi {
     fn calculate(&self, data: &[f64]) -> IndicatorResult<Vec<StochRsiOutput>> {
-        if data.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut results = vec![
-            StochRsiOutput {
+        let mut stream = StochRsiStream::new(
+            self.rsi_period,
+            self.stoch_period,
+            self.k_smooth,
+            self.d_period,
+        )?;
+        collect_stream(
+            &mut stream,
+            data.len(),
+            |index| data[index],
+            || StochRsiOutput {
                 k: f64::NAN,
-                d: f64::NAN
-            };
-            data.len()
-        ];
-
-        // Step 1: Calculate RSI for all data
-        let mut rsi_stream = RsiStream::new(self.rsi_period)?;
-        let rsi_values = rsi_stream.init(data)?;
-
-        // Step 2: Calculate raw Stochastic RSI values
-        // We need stoch_period RSI values to calculate one StochRSI
-        let mut rsi_window: VecDeque<f64> = VecDeque::with_capacity(self.stoch_period);
-        let mut stoch_rsi_raw: Vec<f64> = vec![f64::NAN; data.len()];
-
-        for (i, &rsi) in rsi_values.iter().enumerate() {
-            if rsi.is_nan() {
-                continue;
-            }
-
-            rsi_window.push_back(rsi);
-            if rsi_window.len() > self.stoch_period {
-                rsi_window.pop_front();
-            }
-
-            if rsi_window.len() == self.stoch_period {
-                let min_rsi = rsi_window.iter().copied().fold(f64::INFINITY, f64::min);
-                let max_rsi = rsi_window.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-
-                let range = max_rsi - min_rsi;
-                stoch_rsi_raw[i] = if range > 0.0 {
-                    ((rsi - min_rsi) / range) * 100.0
-                } else {
-                    50.0 // Neutral when range is 0
-                };
-            }
-        }
-
-        // Step 3: Smooth with K smoothing (SMA)
-        let mut k_window: VecDeque<f64> = VecDeque::with_capacity(self.k_smooth);
-        let mut k_values: Vec<f64> = vec![f64::NAN; data.len()];
-
-        for (i, &raw) in stoch_rsi_raw.iter().enumerate() {
-            if raw.is_nan() {
-                continue;
-            }
-
-            k_window.push_back(raw);
-            if k_window.len() > self.k_smooth {
-                k_window.pop_front();
-            }
-
-            if k_window.len() == self.k_smooth {
-                k_values[i] = k_window.iter().sum::<f64>() / self.k_smooth as f64;
-            }
-        }
-
-        // Step 4: Calculate %D as SMA of %K
-        let mut d_window: VecDeque<f64> = VecDeque::with_capacity(self.d_period);
-
-        for (i, &k) in k_values.iter().enumerate() {
-            if k.is_nan() {
-                continue;
-            }
-
-            d_window.push_back(k);
-            if d_window.len() > self.d_period {
-                d_window.pop_front();
-            }
-
-            if d_window.len() == self.d_period {
-                let d = d_window.iter().sum::<f64>() / self.d_period as f64;
-                results[i] = StochRsiOutput { k, d };
-            } else {
-                // %K is available but %D is not yet
-                results[i] = StochRsiOutput { k, d: f64::NAN };
-            }
-        }
-
-        Ok(results)
+                d: f64::NAN,
+            },
+        )
     }
 }
 

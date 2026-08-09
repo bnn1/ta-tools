@@ -31,8 +31,8 @@
 //! let result = hma.calculate(&prices).unwrap();
 //! ```
 
-use crate::indicators::{Wma, WmaStream};
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::indicators::WmaStream;
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// Hull Moving Average calculator for batch operations.
@@ -102,45 +102,8 @@ impl Hma {
 
 impl Indicator<&[f64], Vec<f64>> for Hma {
     fn calculate(&self, data: &[f64]) -> IndicatorResult<Vec<f64>> {
-        let len = data.len();
-        let mut result = vec![f64::NAN; len];
-
-        let lookback = self.lookback();
-        if len <= lookback {
-            return Ok(result);
-        }
-
-        // Step 1: Calculate WMA(n/2)
-        let wma_half = Wma::new(self.half_period)?;
-        let wma_half_values = wma_half.calculate(data)?;
-
-        // Step 2: Calculate WMA(n)
-        let wma_full = Wma::new(self.period)?;
-        let wma_full_values = wma_full.calculate(data)?;
-
-        // Step 3: Calculate raw HMA values: 2 * WMA(n/2) - WMA(n)
-        // This is valid starting from index (period - 1)
-        let mut raw_hma = vec![f64::NAN; len];
-        for i in (self.period - 1)..len {
-            if !wma_half_values[i].is_nan() && !wma_full_values[i].is_nan() {
-                raw_hma[i] = 2.0 * wma_half_values[i] - wma_full_values[i];
-            }
-        }
-
-        // Step 4: Apply WMA(sqrt(n)) to the raw HMA values
-        // We need to extract the valid portion and apply WMA to it
-        let valid_start = self.period - 1;
-        let raw_slice: Vec<f64> = raw_hma[valid_start..].iter().copied().collect();
-
-        let wma_sqrt = Wma::new(self.sqrt_period)?;
-        let smoothed = wma_sqrt.calculate(&raw_slice)?;
-
-        // Map back to result
-        for (i, &val) in smoothed.iter().enumerate() {
-            result[valid_start + i] = val;
-        }
-
-        Ok(result)
+        let mut stream = HmaStream::new(self.period)?;
+        collect_stream(&mut stream, data.len(), |index| data[index], || f64::NAN)
     }
 }
 

@@ -240,16 +240,38 @@ impl SessionVwapStream {
         self.init_input(data)
     }
 
+    /// Initializes the stream from a caller-provided input factory and output
+    /// buffer without materializing an intermediate bar vector.
+    pub fn init_with<F>(
+        &mut self,
+        len: usize,
+        mut make_bar: F,
+        output: &mut [f64],
+    ) -> IndicatorResult<()>
+    where
+        F: FnMut(usize) -> VwapBar,
+    {
+        if output.len() != len {
+            return Err(IndicatorError::InvalidParameter(
+                "output length must match input length".to_string(),
+            ));
+        }
+
+        self.reset();
+        if len == 0 {
+            return Ok(());
+        }
+
+        for (index, slot) in output.iter_mut().enumerate() {
+            *slot = self.next_bar(make_bar(index)).unwrap_or(f64::NAN);
+        }
+        Ok(())
+    }
+
     fn init_input<T: VwapInput>(&mut self, data: &[T]) -> IndicatorResult<Vec<f64>> {
         self.reset();
 
-        if data.is_empty() {
-            return Ok(vec![]);
-        }
-
         let mut result = Vec::with_capacity(data.len());
-        self.current_day = utc_day(data[0].timestamp());
-        self.initialized = true;
 
         for bar in data {
             result.push(self.next_input(bar).unwrap_or(f64::NAN));
@@ -438,6 +460,29 @@ impl RollingVwapStream {
     /// Initializes the stream from native timestamped HLCV bars.
     pub fn init_bars(&mut self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
         self.init_input(data)
+    }
+
+    /// Initializes the stream without materializing an intermediate bar vector.
+    pub fn init_with<F>(
+        &mut self,
+        len: usize,
+        mut make_bar: F,
+        output: &mut [f64],
+    ) -> IndicatorResult<()>
+    where
+        F: FnMut(usize) -> VwapBar,
+    {
+        if output.len() != len {
+            return Err(IndicatorError::InvalidParameter(
+                "output length must match input length".to_string(),
+            ));
+        }
+
+        self.reset();
+        for (index, slot) in output.iter_mut().enumerate() {
+            *slot = self.next_bar(make_bar(index)).unwrap_or(f64::NAN);
+        }
+        Ok(())
     }
 
     fn init_input<T: VwapInput>(&mut self, data: &[T]) -> IndicatorResult<Vec<f64>> {
@@ -672,6 +717,31 @@ impl AnchoredVwapStream {
     /// Initializes the stream from native timestamped HLCV bars.
     pub fn init_bars(&mut self, data: &[VwapBar]) -> IndicatorResult<Vec<f64>> {
         self.init_input(data)
+    }
+
+    /// Initializes the stream without materializing an intermediate bar vector.
+    pub fn init_with<F>(
+        &mut self,
+        len: usize,
+        mut make_bar: F,
+        output: &mut [f64],
+    ) -> IndicatorResult<()>
+    where
+        F: FnMut(usize) -> VwapBar,
+    {
+        if output.len() != len {
+            return Err(IndicatorError::InvalidParameter(
+                "output length must match input length".to_string(),
+            ));
+        }
+
+        self.cum_tp_vol = 0.0;
+        self.cum_vol = 0.0;
+        self.anchored = false;
+        for (index, slot) in output.iter_mut().enumerate() {
+            *slot = self.next_bar(make_bar(index)).unwrap_or(f64::NAN);
+        }
+        Ok(())
     }
 
     fn init_input<T: VwapInput>(&mut self, data: &[T]) -> IndicatorResult<Vec<f64>> {

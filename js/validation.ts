@@ -41,13 +41,20 @@ export function validateFloat64Array(value: unknown, name: string): Float64Array
   if (!(value instanceof Float64Array)) {
     throw new TypeError(`${name} must be a Float64Array`);
   }
+  return value;
+}
 
-  for (let index = 0; index < value.length; index += 1) {
-    if (!Number.isFinite(value[index])) {
-      throw new RangeError(`${name}[${index}] must be finite`);
-    }
+export function validateOutputArray(
+  value: unknown,
+  length: number,
+  name: string,
+): Float64Array {
+  if (!(value instanceof Float64Array)) {
+    throw new TypeError(`${name} must be a Float64Array`);
   }
-
+  if (value.length !== length) {
+    throw new RangeError(`${name} has length ${value.length}, expected ${length}`);
+  }
   return value;
 }
 
@@ -88,9 +95,6 @@ export function validateTimestampedHlcvSeries(
   const series = asRecord(value, "series");
   const { high, low, close, volume } = validateHlcvSeries(value);
   const timestamp = validateFloat64Array(series.timestamp, "series.timestamp");
-  for (let index = 0; index < timestamp.length; index += 1) {
-    validateTimestamp(timestamp[index], `series.timestamp[${index}]`);
-  }
   validateSameLength([
     ["series.high", high],
     ["series.timestamp", timestamp],
@@ -109,17 +113,22 @@ export function validateFrvpSeries(value: unknown): FrvpSeries {
     ["series.low", low],
     ["series.volume", volume],
   ]);
-  validateFrvpRanges(high, low);
-
   return { high, low, volume };
+}
+
+export function validateNumber(value: unknown, name: string): number {
+  if (typeof value !== "number") {
+    throw new TypeError(`${name} must be a number`);
+  }
+  return value;
 }
 
 export function validateHlcBar(value: unknown, name = "bar"): HlcBar {
   const bar = asRecord(value, name);
   return {
-    high: validateFiniteNumber(bar.high, `${name}.high`),
-    low: validateFiniteNumber(bar.low, `${name}.low`),
-    close: validateFiniteNumber(bar.close, `${name}.close`),
+    high: validateNumber(bar.high, `${name}.high`),
+    low: validateNumber(bar.low, `${name}.low`),
+    close: validateNumber(bar.close, `${name}.close`),
   };
 }
 
@@ -130,7 +139,7 @@ export function validateHlcvBar(value: unknown, name = "bar"): HlcvBar {
     high,
     low,
     close,
-    volume: validateFiniteNumber(bar.volume, `${name}.volume`),
+    volume: validateNumber(bar.volume, `${name}.volume`),
   };
 }
 
@@ -140,18 +149,15 @@ export function validateTimestampedHlcvBar(
 ): TimestampedHlcvBar {
   const bar = asRecord(value, name);
   const { high, low, close, volume } = validateHlcvBar(value, name);
-  const timestamp = validateTimestampValue(bar.timestamp, `${name}.timestamp`);
+  const timestamp = validateNumber(bar.timestamp, `${name}.timestamp`);
   return { timestamp, high, low, close, volume };
 }
 
 export function validateFrvpBar(value: unknown, name = "bar"): FrvpBar {
   const bar = asRecord(value, name);
-  const high = validateFiniteNumber(bar.high, `${name}.high`);
-  const low = validateFiniteNumber(bar.low, `${name}.low`);
-  const volume = validateFiniteNumber(bar.volume, `${name}.volume`);
-  if (high < low) {
-    throw new RangeError(`${name}.high must be greater than or equal to ${name}.low`);
-  }
+  const high = validateNumber(bar.high, `${name}.high`);
+  const low = validateNumber(bar.low, `${name}.low`);
+  const volume = validateNumber(bar.volume, `${name}.volume`);
   return { high, low, volume };
 }
 
@@ -259,19 +265,6 @@ export function validateSameLength(
     if (column.length !== first[1].length) {
       throw new RangeError(
         `${name} has length ${column.length}, expected ${first[1].length}`,
-      );
-    }
-  }
-}
-
-function validateFrvpRanges(
-  high: Float64Array,
-  low: Float64Array,
-): void {
-  for (let index = 0; index < high.length; index += 1) {
-    if (high[index] < low[index]) {
-      throw new RangeError(
-        `series.high[${index}] must be greater than or equal to series.low[${index}]`,
       );
     }
   }

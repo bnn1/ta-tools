@@ -8,9 +8,12 @@ use ta_core::indicators::{
     MacdStream as CoreMacdStream, SignalType, StochRsi, StochRsiOutput as CoreStochRsiOutput,
     StochRsiStream as CoreStochRsiStream,
 };
-use ta_core::traits::{Indicator, StreamingIndicator};
+use ta_core::traits::{stream_into, Indicator, StreamingIndicator};
 
-use crate::error::{map_indicator_error, validate_finite};
+use crate::error::{
+    map_indicator_error, validate_finite, validate_output, validate_output_disjoint,
+    validate_same_length,
+};
 
 #[napi(object)]
 pub struct MacdOutput {
@@ -84,6 +87,7 @@ pub fn macd(
 #[napi(js_name = "MacdStream")]
 pub struct NativeMacdStream {
     inner: CoreMacdStream,
+    history: Vec<CoreMacdOutput>,
 }
 
 #[napi]
@@ -103,30 +107,177 @@ impl NativeMacdStream {
                 parse_signal_type(signal_type.as_deref())?,
             )
             .map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Vec<MacdPoint>> {
         validate_finite(data)?;
-        Ok(self
-            .inner
-            .init(data)
-            .map_err(map_indicator_error)?
-            .into_iter()
-            .map(macd_point)
-            .collect())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into_iter().map(macd_point).collect())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(
+        &mut self,
+        data: &[f64],
+        mut macd: Float64Array,
+        mut signal: Float64Array,
+        mut histogram: Float64Array,
+    ) -> Result<()> {
+        let macd = unsafe { macd.as_mut() };
+        let signal = unsafe { signal.as_mut() };
+        let histogram = unsafe { histogram.as_mut() };
+        validate_finite(data)?;
+        let len = data.len();
+        for (name, output) in [
+            ("macd", &*macd),
+            ("signal", &*signal),
+            ("histogram", &*histogram),
+        ] {
+            validate_output(output, len, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("macd", &*macd),
+                ("signal", &*signal),
+                ("histogram", &*histogram),
+            ],
+            &[("data", data)],
+        )?;
+        self.history.clear();
+        self.history.reserve(len);
+        let history = &mut self.history;
+        stream_into(
+            &mut self.inner,
+            len,
+            |index| data[index],
+            |index, value| {
+                let value = value.unwrap_or(CoreMacdOutput {
+                    macd: f64::NAN,
+                    signal: f64::NAN,
+                    histogram: f64::NAN,
+                });
+                macd[index] = value.macd;
+                signal[index] = value.signal;
+                histogram[index] = value.histogram;
+                history.push(value);
+            },
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<MacdPoint>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value).map(macd_point))
+        let result = self.inner.next(value);
+        self.history
+            .push(result.unwrap_or_else(CoreMacdOutput::nan));
+        Ok(result.map(macd_point))
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(
+        &mut self,
+        value: f64,
+        mut macd: Float64Array,
+        mut signal: Float64Array,
+        mut histogram: Float64Array,
+    ) -> Result<bool> {
+        let macd = unsafe { macd.as_mut() };
+        let signal = unsafe { signal.as_mut() };
+        let histogram = unsafe { histogram.as_mut() };
+        validate_finite(&[value])?;
+        for (name, output) in [
+            ("macd", &*macd),
+            ("signal", &*signal),
+            ("histogram", &*histogram),
+        ] {
+            validate_output(output, 1, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("macd", &*macd),
+                ("signal", &*signal),
+                ("histogram", &*histogram),
+            ],
+            &[],
+        )?;
+        let result = self.inner.next(value);
+        let value = result.unwrap_or(CoreMacdOutput {
+            macd: f64::NAN,
+            signal: f64::NAN,
+            histogram: f64::NAN,
+        });
+        macd[0] = value.macd;
+        signal[0] = value.signal;
+        histogram[0] = value.histogram;
+        self.history.push(value);
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> MacdOutput {
+        let mut macd = Vec::with_capacity(self.history.len());
+        let mut signal = Vec::with_capacity(self.history.len());
+        let mut histogram = Vec::with_capacity(self.history.len());
+        for value in &self.history {
+            macd.push(value.macd);
+            signal.push(value.signal);
+            histogram.push(value.histogram);
+        }
+        MacdOutput {
+            macd: macd.into(),
+            signal: signal.into(),
+            histogram: histogram.into(),
+        }
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(
+        &self,
+        mut macd: Float64Array,
+        mut signal: Float64Array,
+        mut histogram: Float64Array,
+    ) -> Result<()> {
+        let macd = unsafe { macd.as_mut() };
+        let signal = unsafe { signal.as_mut() };
+        let histogram = unsafe { histogram.as_mut() };
+        let len = self.history.len();
+        for (name, output) in [
+            ("macd", &*macd),
+            ("signal", &*signal),
+            ("histogram", &*histogram),
+        ] {
+            validate_output(output, len, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("macd", &*macd),
+                ("signal", &*signal),
+                ("histogram", &*histogram),
+            ],
+            &[],
+        )?;
+        for (index, value) in self.history.iter().enumerate() {
+            macd[index] = value.macd;
+            signal[index] = value.signal;
+            histogram[index] = value.histogram;
+        }
+        Ok(())
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -211,6 +362,7 @@ pub fn bbands(data: &[f64], period: u32, k: f64) -> Result<BBandsOutput> {
 #[napi(js_name = "BBandsStream")]
 pub struct NativeBBandsStream {
     inner: ta_core::indicators::BBandsStream,
+    history: Vec<CoreBBandsOutput>,
 }
 
 #[napi]
@@ -220,30 +372,205 @@ impl NativeBBandsStream {
         Ok(Self {
             inner: ta_core::indicators::BBandsStream::new(period as usize, k)
                 .map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Vec<BBandsPoint>> {
         validate_finite(data)?;
-        Ok(self
-            .inner
-            .init(data)
-            .map_err(map_indicator_error)?
-            .into_iter()
-            .map(bbands_point)
-            .collect())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into_iter().map(bbands_point).collect())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(
+        &mut self,
+        data: &[f64],
+        mut upper: Float64Array,
+        mut middle: Float64Array,
+        mut lower: Float64Array,
+        mut percent_b: Float64Array,
+        mut bandwidth: Float64Array,
+    ) -> Result<()> {
+        let upper = unsafe { upper.as_mut() };
+        let middle = unsafe { middle.as_mut() };
+        let lower = unsafe { lower.as_mut() };
+        let percent_b = unsafe { percent_b.as_mut() };
+        let bandwidth = unsafe { bandwidth.as_mut() };
+        validate_finite(data)?;
+        let len = data.len();
+        for (name, output) in [
+            ("upper", &*upper),
+            ("middle", &*middle),
+            ("lower", &*lower),
+            ("percentB", &*percent_b),
+            ("bandwidth", &*bandwidth),
+        ] {
+            validate_output(output, len, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("upper", &*upper),
+                ("middle", &*middle),
+                ("lower", &*lower),
+                ("percentB", &*percent_b),
+                ("bandwidth", &*bandwidth),
+            ],
+            &[("data", data)],
+        )?;
+        self.history.clear();
+        self.history.reserve(len);
+        let history = &mut self.history;
+        stream_into(
+            &mut self.inner,
+            len,
+            |index| data[index],
+            |index, value| {
+                let value = value.unwrap_or_else(CoreBBandsOutput::nan);
+                upper[index] = value.upper;
+                middle[index] = value.middle;
+                lower[index] = value.lower;
+                percent_b[index] = value.percent_b;
+                bandwidth[index] = value.bandwidth;
+                history.push(value);
+            },
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<BBandsPoint>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value).map(bbands_point))
+        let result = self.inner.next(value);
+        self.history
+            .push(result.unwrap_or_else(CoreBBandsOutput::nan));
+        Ok(result.map(bbands_point))
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(
+        &mut self,
+        value: f64,
+        mut upper: Float64Array,
+        mut middle: Float64Array,
+        mut lower: Float64Array,
+        mut percent_b: Float64Array,
+        mut bandwidth: Float64Array,
+    ) -> Result<bool> {
+        let upper = unsafe { upper.as_mut() };
+        let middle = unsafe { middle.as_mut() };
+        let lower = unsafe { lower.as_mut() };
+        let percent_b = unsafe { percent_b.as_mut() };
+        let bandwidth = unsafe { bandwidth.as_mut() };
+        validate_finite(&[value])?;
+        for (name, output) in [
+            ("upper", &*upper),
+            ("middle", &*middle),
+            ("lower", &*lower),
+            ("percentB", &*percent_b),
+            ("bandwidth", &*bandwidth),
+        ] {
+            validate_output(output, 1, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("upper", &*upper),
+                ("middle", &*middle),
+                ("lower", &*lower),
+                ("percentB", &*percent_b),
+                ("bandwidth", &*bandwidth),
+            ],
+            &[],
+        )?;
+        let result = self.inner.next(value);
+        let value = result.unwrap_or_else(CoreBBandsOutput::nan);
+        upper[0] = value.upper;
+        middle[0] = value.middle;
+        lower[0] = value.lower;
+        percent_b[0] = value.percent_b;
+        bandwidth[0] = value.bandwidth;
+        self.history.push(value);
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> BBandsOutput {
+        let mut upper = Vec::with_capacity(self.history.len());
+        let mut middle = Vec::with_capacity(self.history.len());
+        let mut lower = Vec::with_capacity(self.history.len());
+        let mut percent_b = Vec::with_capacity(self.history.len());
+        let mut bandwidth = Vec::with_capacity(self.history.len());
+        for value in &self.history {
+            upper.push(value.upper);
+            middle.push(value.middle);
+            lower.push(value.lower);
+            percent_b.push(value.percent_b);
+            bandwidth.push(value.bandwidth);
+        }
+        BBandsOutput {
+            upper: upper.into(),
+            middle: middle.into(),
+            lower: lower.into(),
+            percent_b: percent_b.into(),
+            bandwidth: bandwidth.into(),
+        }
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(
+        &self,
+        mut upper: Float64Array,
+        mut middle: Float64Array,
+        mut lower: Float64Array,
+        mut percent_b: Float64Array,
+        mut bandwidth: Float64Array,
+    ) -> Result<()> {
+        let upper = unsafe { upper.as_mut() };
+        let middle = unsafe { middle.as_mut() };
+        let lower = unsafe { lower.as_mut() };
+        let percent_b = unsafe { percent_b.as_mut() };
+        let bandwidth = unsafe { bandwidth.as_mut() };
+        let len = self.history.len();
+        for (name, output) in [
+            ("upper", &*upper),
+            ("middle", &*middle),
+            ("lower", &*lower),
+            ("percentB", &*percent_b),
+            ("bandwidth", &*bandwidth),
+        ] {
+            validate_output(output, len, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("upper", &*upper),
+                ("middle", &*middle),
+                ("lower", &*lower),
+                ("percentB", &*percent_b),
+                ("bandwidth", &*bandwidth),
+            ],
+            &[],
+        )?;
+        for (index, value) in self.history.iter().enumerate() {
+            upper[index] = value.upper;
+            middle[index] = value.middle;
+            lower[index] = value.lower;
+            percent_b[index] = value.percent_b;
+            bandwidth[index] = value.bandwidth;
+        }
+        Ok(())
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -316,6 +643,7 @@ pub fn stoch_rsi(
 #[napi(js_name = "StochRsiStream")]
 pub struct NativeStochRsiStream {
     inner: CoreStochRsiStream,
+    history: Vec<CoreStochRsiOutput>,
 }
 
 #[napi]
@@ -330,30 +658,125 @@ impl NativeStochRsiStream {
                 d_period as usize,
             )
             .map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Vec<StochRsiPoint>> {
         validate_finite(data)?;
-        Ok(self
-            .inner
-            .init(data)
-            .map_err(map_indicator_error)?
-            .into_iter()
-            .map(stoch_rsi_point)
-            .collect())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into_iter().map(stoch_rsi_point).collect())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(
+        &mut self,
+        data: &[f64],
+        mut k: Float64Array,
+        mut d: Float64Array,
+    ) -> Result<()> {
+        let k = unsafe { k.as_mut() };
+        let d = unsafe { d.as_mut() };
+        validate_finite(data)?;
+        let len = data.len();
+        validate_output(k, len, "k")?;
+        validate_output(d, len, "d")?;
+        validate_output_disjoint(&[("k", &*k), ("d", &*d)], &[("data", data)])?;
+        self.history.clear();
+        self.history.reserve(len);
+        let history = &mut self.history;
+        stream_into(
+            &mut self.inner,
+            len,
+            |index| data[index],
+            |index, value| {
+                let value = value.unwrap_or(CoreStochRsiOutput {
+                    k: f64::NAN,
+                    d: f64::NAN,
+                });
+                k[index] = value.k;
+                d[index] = value.d;
+                history.push(value);
+            },
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<StochRsiPoint>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value).map(stoch_rsi_point))
+        let result = self.inner.next(value);
+        self.history
+            .push(result.unwrap_or_else(|| CoreStochRsiOutput {
+                k: f64::NAN,
+                d: f64::NAN,
+            }));
+        Ok(result.map(stoch_rsi_point))
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(
+        &mut self,
+        value: f64,
+        mut k: Float64Array,
+        mut d: Float64Array,
+    ) -> Result<bool> {
+        let k = unsafe { k.as_mut() };
+        let d = unsafe { d.as_mut() };
+        validate_finite(&[value])?;
+        validate_output(k, 1, "k")?;
+        validate_output(d, 1, "d")?;
+        validate_output_disjoint(&[("k", &*k), ("d", &*d)], &[])?;
+        let result = self.inner.next(value);
+        let value = result.unwrap_or(CoreStochRsiOutput {
+            k: f64::NAN,
+            d: f64::NAN,
+        });
+        k[0] = value.k;
+        d[0] = value.d;
+        self.history.push(value);
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> StochRsiOutput {
+        let mut k = Vec::with_capacity(self.history.len());
+        let mut d = Vec::with_capacity(self.history.len());
+        for value in &self.history {
+            k.push(value.k);
+            d.push(value.d);
+        }
+        StochRsiOutput {
+            k: k.into(),
+            d: d.into(),
+        }
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(&self, mut k: Float64Array, mut d: Float64Array) -> Result<()> {
+        let k = unsafe { k.as_mut() };
+        let d = unsafe { d.as_mut() };
+        validate_output(k, self.history.len(), "k")?;
+        validate_output(d, self.history.len(), "d")?;
+        validate_output_disjoint(&[("k", &*k), ("d", &*d)], &[])?;
+        for (index, value) in self.history.iter().enumerate() {
+            k[index] = value.k;
+            d[index] = value.d;
+        }
+        Ok(())
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -511,6 +934,339 @@ fn linreg_point(output: CoreLinRegOutput) -> LinRegPoint {
     }
 }
 
+#[napi(js_name = "macdInto")]
+pub fn macd_into(
+    data: &[f64],
+    fast_period: u32,
+    slow_period: u32,
+    signal_period: u32,
+    signal_type: Option<String>,
+    mut macd: Float64Array,
+    mut signal: Float64Array,
+    mut histogram: Float64Array,
+) -> Result<()> {
+    let macd = unsafe { macd.as_mut() };
+    let signal = unsafe { signal.as_mut() };
+    let histogram = unsafe { histogram.as_mut() };
+    validate_finite(data)?;
+    let len = data.len();
+    for (name, output) in [
+        ("macd", &*macd),
+        ("signal", &*signal),
+        ("histogram", &*histogram),
+    ] {
+        validate_output(output, len, name)?;
+    }
+    validate_output_disjoint(
+        &[
+            ("macd", &*macd),
+            ("signal", &*signal),
+            ("histogram", &*histogram),
+        ],
+        &[("data", data)],
+    )?;
+
+    let mut stream = CoreMacdStream::with_signal_type(
+        fast_period as usize,
+        slow_period as usize,
+        signal_period as usize,
+        parse_signal_type(signal_type.as_deref())?,
+    )
+    .map_err(map_indicator_error)?;
+    stream_into(
+        &mut stream,
+        len,
+        |index| data[index],
+        |index, value| {
+            let value = value.unwrap_or_else(CoreMacdOutput::nan);
+            macd[index] = value.macd;
+            signal[index] = value.signal;
+            histogram[index] = value.histogram;
+        },
+    )
+    .map_err(map_indicator_error)
+}
+
+#[napi(js_name = "bbandsInto")]
+pub fn bbands_into(
+    data: &[f64],
+    period: u32,
+    k: f64,
+    mut upper: Float64Array,
+    mut middle: Float64Array,
+    mut lower: Float64Array,
+    mut percent_b: Float64Array,
+    mut bandwidth: Float64Array,
+) -> Result<()> {
+    let upper = unsafe { upper.as_mut() };
+    let middle = unsafe { middle.as_mut() };
+    let lower = unsafe { lower.as_mut() };
+    let percent_b = unsafe { percent_b.as_mut() };
+    let bandwidth = unsafe { bandwidth.as_mut() };
+    validate_finite(data)?;
+    let len = data.len();
+    for (name, output) in [
+        ("upper", &*upper),
+        ("middle", &*middle),
+        ("lower", &*lower),
+        ("percentB", &*percent_b),
+        ("bandwidth", &*bandwidth),
+    ] {
+        validate_output(output, len, name)?;
+    }
+    validate_output_disjoint(
+        &[
+            ("upper", &*upper),
+            ("middle", &*middle),
+            ("lower", &*lower),
+            ("percentB", &*percent_b),
+            ("bandwidth", &*bandwidth),
+        ],
+        &[("data", data)],
+    )?;
+
+    let mut stream =
+        ta_core::indicators::BBandsStream::new(period as usize, k).map_err(map_indicator_error)?;
+    stream_into(
+        &mut stream,
+        len,
+        |index| data[index],
+        |index, value| {
+            let value = value.unwrap_or_else(CoreBBandsOutput::nan);
+            upper[index] = value.upper;
+            middle[index] = value.middle;
+            lower[index] = value.lower;
+            percent_b[index] = value.percent_b;
+            bandwidth[index] = value.bandwidth;
+        },
+    )
+    .map_err(map_indicator_error)
+}
+
+#[napi(js_name = "stochRsiInto")]
+pub fn stoch_rsi_into(
+    data: &[f64],
+    rsi_period: u32,
+    stoch_period: u32,
+    k_smooth: u32,
+    d_period: u32,
+    mut k: Float64Array,
+    mut d: Float64Array,
+) -> Result<()> {
+    let k = unsafe { k.as_mut() };
+    let d = unsafe { d.as_mut() };
+    validate_finite(data)?;
+    let len = data.len();
+    validate_output(k, len, "k")?;
+    validate_output(d, len, "d")?;
+    validate_output_disjoint(&[("k", &*k), ("d", &*d)], &[("data", data)])?;
+
+    let mut stream = CoreStochRsiStream::new(
+        rsi_period as usize,
+        stoch_period as usize,
+        k_smooth as usize,
+        d_period as usize,
+    )
+    .map_err(map_indicator_error)?;
+    stream_into(
+        &mut stream,
+        len,
+        |index| data[index],
+        |index, value| {
+            let value = value.unwrap_or(CoreStochRsiOutput {
+                k: f64::NAN,
+                d: f64::NAN,
+            });
+            k[index] = value.k;
+            d[index] = value.d;
+        },
+    )
+    .map_err(map_indicator_error)
+}
+
+#[napi(js_name = "adxInto")]
+pub fn adx_into(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    period: u32,
+    mut adx: Float64Array,
+    mut plus_di: Float64Array,
+    mut minus_di: Float64Array,
+) -> Result<()> {
+    let adx = unsafe { adx.as_mut() };
+    let plus_di = unsafe { plus_di.as_mut() };
+    let minus_di = unsafe { minus_di.as_mut() };
+    let len = validate_same_length(&[
+        ("highs", highs.len()),
+        ("lows", lows.len()),
+        ("closes", closes.len()),
+    ])?;
+    validate_finite(highs)?;
+    validate_finite(lows)?;
+    validate_finite(closes)?;
+    for (name, output) in [
+        ("adx", &*adx),
+        ("plusDi", &*plus_di),
+        ("minusDi", &*minus_di),
+    ] {
+        validate_output(output, len, name)?;
+    }
+    validate_output_disjoint(
+        &[
+            ("adx", &*adx),
+            ("plusDi", &*plus_di),
+            ("minusDi", &*minus_di),
+        ],
+        &[("highs", highs), ("lows", lows), ("closes", closes)],
+    )?;
+
+    let mut stream =
+        ta_core::indicators::AdxStream::new(period as usize).map_err(map_indicator_error)?;
+    stream_into(
+        &mut stream,
+        len,
+        |index| (highs[index], lows[index], closes[index]),
+        |index, value| {
+            let value = value.unwrap_or_else(ta_core::indicators::AdxOutput::nan);
+            adx[index] = value.adx;
+            plus_di[index] = value.plus_di;
+            minus_di[index] = value.minus_di;
+        },
+    )
+    .map_err(map_indicator_error)
+}
+
+#[napi(js_name = "ichimokuInto")]
+pub fn ichimoku_into(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    tenkan_period: u32,
+    kijun_period: u32,
+    senkou_b_period: u32,
+    mut tenkan_sen: Float64Array,
+    mut kijun_sen: Float64Array,
+    mut senkou_span_a: Float64Array,
+    mut senkou_span_b: Float64Array,
+    mut chikou_span: Float64Array,
+) -> Result<()> {
+    let tenkan_sen = unsafe { tenkan_sen.as_mut() };
+    let kijun_sen = unsafe { kijun_sen.as_mut() };
+    let senkou_span_a = unsafe { senkou_span_a.as_mut() };
+    let senkou_span_b = unsafe { senkou_span_b.as_mut() };
+    let chikou_span = unsafe { chikou_span.as_mut() };
+    let len = validate_same_length(&[
+        ("highs", highs.len()),
+        ("lows", lows.len()),
+        ("closes", closes.len()),
+    ])?;
+    validate_finite(highs)?;
+    validate_finite(lows)?;
+    validate_finite(closes)?;
+    for (name, output) in [
+        ("tenkanSen", &*tenkan_sen),
+        ("kijunSen", &*kijun_sen),
+        ("senkouSpanA", &*senkou_span_a),
+        ("senkouSpanB", &*senkou_span_b),
+        ("chikouSpan", &*chikou_span),
+    ] {
+        validate_output(output, len, name)?;
+    }
+    validate_output_disjoint(
+        &[
+            ("tenkanSen", &*tenkan_sen),
+            ("kijunSen", &*kijun_sen),
+            ("senkouSpanA", &*senkou_span_a),
+            ("senkouSpanB", &*senkou_span_b),
+            ("chikouSpan", &*chikou_span),
+        ],
+        &[("highs", highs), ("lows", lows), ("closes", closes)],
+    )?;
+
+    let mut stream = ta_core::indicators::IchimokuStream::new(
+        tenkan_period as usize,
+        kijun_period as usize,
+        senkou_b_period as usize,
+    )
+    .map_err(map_indicator_error)?;
+    stream_into(
+        &mut stream,
+        len,
+        |index| (highs[index], lows[index], closes[index]),
+        |index, value| {
+            let value = value.unwrap_or_else(ta_core::indicators::IchimokuOutput::nan);
+            tenkan_sen[index] = value.tenkan_sen;
+            kijun_sen[index] = value.kijun_sen;
+            senkou_span_a[index] = value.senkou_span_a;
+            senkou_span_b[index] = value.senkou_span_b;
+            chikou_span[index] = value.chikou_span;
+        },
+    )
+    .map_err(map_indicator_error)
+}
+
+#[napi(js_name = "linregInto")]
+pub fn linreg_into(
+    data: &[f64],
+    period: u32,
+    num_std_dev: f64,
+    mut value: Float64Array,
+    mut upper: Float64Array,
+    mut lower: Float64Array,
+    mut slope: Float64Array,
+    mut r: Float64Array,
+    mut r_squared: Float64Array,
+) -> Result<()> {
+    let value = unsafe { value.as_mut() };
+    let upper = unsafe { upper.as_mut() };
+    let lower = unsafe { lower.as_mut() };
+    let slope = unsafe { slope.as_mut() };
+    let r = unsafe { r.as_mut() };
+    let r_squared = unsafe { r_squared.as_mut() };
+    validate_finite(data)?;
+    let len = data.len();
+    for (name, output) in [
+        ("value", &*value),
+        ("upper", &*upper),
+        ("lower", &*lower),
+        ("slope", &*slope),
+        ("r", &*r),
+        ("rSquared", &*r_squared),
+    ] {
+        validate_output(output, len, name)?;
+    }
+    validate_output_disjoint(
+        &[
+            ("value", &*value),
+            ("upper", &*upper),
+            ("lower", &*lower),
+            ("slope", &*slope),
+            ("r", &*r),
+            ("rSquared", &*r_squared),
+        ],
+        &[("data", data)],
+    )?;
+
+    let mut stream = ta_core::indicators::LinRegStream::new(period as usize, num_std_dev)
+        .map_err(map_indicator_error)?;
+    stream_into(
+        &mut stream,
+        len,
+        |index| data[index],
+        |index, output| {
+            let output = output.unwrap_or_else(ta_core::indicators::LinRegOutput::nan);
+            value[index] = output.value;
+            upper[index] = output.upper;
+            lower[index] = output.lower;
+            slope[index] = output.slope;
+            r[index] = output.r;
+            r_squared[index] = output.r_squared;
+        },
+    )
+    .map_err(map_indicator_error)
+}
+
 #[napi]
 pub fn linreg(data: &[f64], period: u32, num_std_dev: f64) -> Result<LinRegOutput> {
     validate_finite(data)?;
@@ -547,6 +1303,7 @@ pub fn linreg(data: &[f64], period: u32, num_std_dev: f64) -> Result<LinRegOutpu
 #[napi(js_name = "LinRegStream")]
 pub struct NativeLinRegStream {
     inner: ta_core::indicators::LinRegStream,
+    history: Vec<CoreLinRegOutput>,
 }
 
 #[napi]
@@ -557,30 +1314,223 @@ impl NativeLinRegStream {
         Ok(Self {
             inner: ta_core::indicators::LinRegStream::new(period as usize, num_std_dev)
                 .map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Vec<LinRegPoint>> {
         validate_finite(data)?;
-        Ok(self
-            .inner
-            .init(data)
-            .map_err(map_indicator_error)?
-            .into_iter()
-            .map(linreg_point)
-            .collect())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into_iter().map(linreg_point).collect())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(
+        &mut self,
+        data: &[f64],
+        mut value: Float64Array,
+        mut upper: Float64Array,
+        mut lower: Float64Array,
+        mut slope: Float64Array,
+        mut r: Float64Array,
+        mut r_squared: Float64Array,
+    ) -> Result<()> {
+        let value = unsafe { value.as_mut() };
+        let upper = unsafe { upper.as_mut() };
+        let lower = unsafe { lower.as_mut() };
+        let slope = unsafe { slope.as_mut() };
+        let r = unsafe { r.as_mut() };
+        let r_squared = unsafe { r_squared.as_mut() };
+        validate_finite(data)?;
+        let len = data.len();
+        for (name, output) in [
+            ("value", &*value),
+            ("upper", &*upper),
+            ("lower", &*lower),
+            ("slope", &*slope),
+            ("r", &*r),
+            ("rSquared", &*r_squared),
+        ] {
+            validate_output(output, len, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("value", &*value),
+                ("upper", &*upper),
+                ("lower", &*lower),
+                ("slope", &*slope),
+                ("r", &*r),
+                ("rSquared", &*r_squared),
+            ],
+            &[("data", data)],
+        )?;
+        self.history.clear();
+        self.history.reserve(len);
+        let history = &mut self.history;
+        stream_into(
+            &mut self.inner,
+            len,
+            |index| data[index],
+            |index, output| {
+                let output = output.unwrap_or_else(CoreLinRegOutput::nan);
+                value[index] = output.value;
+                upper[index] = output.upper;
+                lower[index] = output.lower;
+                slope[index] = output.slope;
+                r[index] = output.r;
+                r_squared[index] = output.r_squared;
+                history.push(output);
+            },
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<LinRegPoint>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value).map(linreg_point))
+        let result = self.inner.next(value);
+        self.history
+            .push(result.unwrap_or_else(CoreLinRegOutput::nan));
+        Ok(result.map(linreg_point))
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(
+        &mut self,
+        value: f64,
+        mut output_value: Float64Array,
+        mut output_upper: Float64Array,
+        mut output_lower: Float64Array,
+        mut output_slope: Float64Array,
+        mut output_r: Float64Array,
+        mut output_r_squared: Float64Array,
+    ) -> Result<bool> {
+        let output_value = unsafe { output_value.as_mut() };
+        let output_upper = unsafe { output_upper.as_mut() };
+        let output_lower = unsafe { output_lower.as_mut() };
+        let output_slope = unsafe { output_slope.as_mut() };
+        let output_r = unsafe { output_r.as_mut() };
+        let output_r_squared = unsafe { output_r_squared.as_mut() };
+        validate_finite(&[value])?;
+        for (name, output) in [
+            ("value", &*output_value),
+            ("upper", &*output_upper),
+            ("lower", &*output_lower),
+            ("slope", &*output_slope),
+            ("r", &*output_r),
+            ("rSquared", &*output_r_squared),
+        ] {
+            validate_output(output, 1, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("value", &*output_value),
+                ("upper", &*output_upper),
+                ("lower", &*output_lower),
+                ("slope", &*output_slope),
+                ("r", &*output_r),
+                ("rSquared", &*output_r_squared),
+            ],
+            &[],
+        )?;
+        let result = self.inner.next(value);
+        let value = result.unwrap_or_else(CoreLinRegOutput::nan);
+        output_value[0] = value.value;
+        output_upper[0] = value.upper;
+        output_lower[0] = value.lower;
+        output_slope[0] = value.slope;
+        output_r[0] = value.r;
+        output_r_squared[0] = value.r_squared;
+        self.history.push(value);
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> LinRegOutput {
+        let mut value = Vec::with_capacity(self.history.len());
+        let mut upper = Vec::with_capacity(self.history.len());
+        let mut lower = Vec::with_capacity(self.history.len());
+        let mut slope = Vec::with_capacity(self.history.len());
+        let mut r = Vec::with_capacity(self.history.len());
+        let mut r_squared = Vec::with_capacity(self.history.len());
+        for output in &self.history {
+            value.push(output.value);
+            upper.push(output.upper);
+            lower.push(output.lower);
+            slope.push(output.slope);
+            r.push(output.r);
+            r_squared.push(output.r_squared);
+        }
+        LinRegOutput {
+            value: value.into(),
+            upper: upper.into(),
+            lower: lower.into(),
+            slope: slope.into(),
+            r: r.into(),
+            r_squared: r_squared.into(),
+        }
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(
+        &self,
+        mut value: Float64Array,
+        mut upper: Float64Array,
+        mut lower: Float64Array,
+        mut slope: Float64Array,
+        mut r: Float64Array,
+        mut r_squared: Float64Array,
+    ) -> Result<()> {
+        let value = unsafe { value.as_mut() };
+        let upper = unsafe { upper.as_mut() };
+        let lower = unsafe { lower.as_mut() };
+        let slope = unsafe { slope.as_mut() };
+        let r = unsafe { r.as_mut() };
+        let r_squared = unsafe { r_squared.as_mut() };
+        let len = self.history.len();
+        for (name, output) in [
+            ("value", &*value),
+            ("upper", &*upper),
+            ("lower", &*lower),
+            ("slope", &*slope),
+            ("r", &*r),
+            ("rSquared", &*r_squared),
+        ] {
+            validate_output(output, len, name)?;
+        }
+        validate_output_disjoint(
+            &[
+                ("value", &*value),
+                ("upper", &*upper),
+                ("lower", &*lower),
+                ("slope", &*slope),
+                ("r", &*r),
+                ("rSquared", &*r_squared),
+            ],
+            &[],
+        )?;
+        for (index, output) in self.history.iter().enumerate() {
+            value[index] = output.value;
+            upper[index] = output.upper;
+            lower[index] = output.lower;
+            slope[index] = output.slope;
+            r[index] = output.r;
+            r_squared[index] = output.r_squared;
+        }
+        Ok(())
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]

@@ -23,6 +23,7 @@ import {
 import {
   requiredOption,
   validateFiniteNumber,
+  validateNumber,
   validateFrvpBar,
   validateFrvpSeries,
   validateHlcBar,
@@ -30,10 +31,12 @@ import {
   validateHlcvBar,
   validateHlcvSeries,
   validateOptions,
+  validateFloat64Array,
   validatePriceSeries,
   validateTimestamp,
   validateTimestampedHlcvBar,
   validateTimestampedHlcvSeries,
+  validateOutputArray,
 } from "./validation.js";
 import {
   bbandsOptions,
@@ -47,8 +50,10 @@ import {
 } from "./options.js";
 import type {
   AdxPoint,
+  AdxOutput,
   AnchoredVwapStreamOptions,
   BBandsOptions,
+  BBandsOutput,
   BBandsPoint,
   FrvpBar,
   FrvpOptions,
@@ -59,16 +64,21 @@ import type {
   HlcvBar,
   HlcvSeries,
   IchimokuOptions,
+  IchimokuOutput,
   IchimokuPoint,
   LinRegOptions,
+  LinRegOutput,
   LinRegPoint,
   MacdOptions,
+  MacdOutput,
   MacdPoint,
   PeriodOptions,
   PriceSeries,
   StochOptions,
+  StochOutput,
   StochPoint,
   StochRsiOptions,
+  StochRsiOutput,
   StochRsiPoint,
   TimestampedHlcvBar,
   TimestampedHlcvSeries,
@@ -76,6 +86,18 @@ import type {
 
 function optional<T>(value: T | null): T | undefined {
   return value === null ? undefined : value;
+}
+
+function validateStreamOutput(
+  value: Float64Array,
+  length: number,
+  name: string,
+): Float64Array {
+  return validateOutputArray(value, length, name);
+}
+
+function validateHistoryOutput(value: Float64Array, name: string): Float64Array {
+  return validateFloat64Array(value, name);
 }
 
 function mapFrvpOutput(value: FrvpOutput): FrvpOutput {
@@ -151,12 +173,34 @@ export class SmaStream {
     this.inner = new NativeSmaStream(periodOption(options));
   }
 
-  public init(series: PriceSeries): Float64Array {
-    return this.inner.init(validatePriceSeries(series));
+  public init(series: PriceSeries, output: Float64Array): Float64Array {
+    const data = validatePriceSeries(series);
+    const result = validateStreamOutput(output, data.length, "output");
+    this.inner.initInto(data, result);
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): number | undefined {
-    return optional(this.inner.next(validateFiniteNumber(value, "value")));
+    return optional(this.inner.next(validateNumber(value, "value")));
+  }
+
+  public nextInto(value: number, output: Float64Array): boolean {
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(validateNumber(value, "value"), result);
   }
 
   public reset(): void {
@@ -179,12 +223,34 @@ export class EmaStream {
     this.inner = new NativeEmaStream(periodOption(options));
   }
 
-  public init(series: PriceSeries): Float64Array {
-    return this.inner.init(validatePriceSeries(series));
+  public init(series: PriceSeries, output: Float64Array): Float64Array {
+    const data = validatePriceSeries(series);
+    const result = validateStreamOutput(output, data.length, "output");
+    this.inner.initInto(data, result);
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): number | undefined {
-    return optional(this.inner.next(validateFiniteNumber(value, "value")));
+    return optional(this.inner.next(validateNumber(value, "value")));
+  }
+
+  public nextInto(value: number, output: Float64Array): boolean {
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(validateNumber(value, "value"), result);
   }
 
   public reset(): void {
@@ -215,12 +281,34 @@ export class WmaStream {
     this.inner = new NativeWmaStream(periodOption(options));
   }
 
-  public init(series: PriceSeries): Float64Array {
-    return this.inner.init(validatePriceSeries(series));
+  public init(series: PriceSeries, output: Float64Array): Float64Array {
+    const data = validatePriceSeries(series);
+    const result = validateStreamOutput(output, data.length, "output");
+    this.inner.initInto(data, result);
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): number | undefined {
-    return optional(this.inner.next(validateFiniteNumber(value, "value")));
+    return optional(this.inner.next(validateNumber(value, "value")));
+  }
+
+  public nextInto(value: number, output: Float64Array): boolean {
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(validateNumber(value, "value"), result);
   }
 
   public reset(): void {
@@ -243,12 +331,34 @@ export class RsiStream {
     this.inner = new NativeRsiStream(periodOption(options));
   }
 
-  public init(series: PriceSeries): Float64Array {
-    return this.inner.init(validatePriceSeries(series));
+  public init(series: PriceSeries, output: Float64Array): Float64Array {
+    const data = validatePriceSeries(series);
+    const result = validateStreamOutput(output, data.length, "output");
+    this.inner.initInto(data, result);
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): number | undefined {
-    return optional(this.inner.next(validateFiniteNumber(value, "value")));
+    return optional(this.inner.next(validateNumber(value, "value")));
+  }
+
+  public nextInto(value: number, output: Float64Array): boolean {
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(validateNumber(value, "value"), result);
   }
 
   public reset(): void {
@@ -275,12 +385,34 @@ export class HmaStream {
     this.inner = new NativeHmaStream(periodOption(options));
   }
 
-  public init(series: PriceSeries): Float64Array {
-    return this.inner.init(validatePriceSeries(series));
+  public init(series: PriceSeries, output: Float64Array): Float64Array {
+    const data = validatePriceSeries(series);
+    const result = validateStreamOutput(output, data.length, "output");
+    this.inner.initInto(data, result);
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): number | undefined {
-    return optional(this.inner.next(validateFiniteNumber(value, "value")));
+    return optional(this.inner.next(validateNumber(value, "value")));
+  }
+
+  public nextInto(value: number, output: Float64Array): boolean {
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(validateNumber(value, "value"), result);
   }
 
   public reset(): void {
@@ -307,12 +439,34 @@ export class HmaStream {
 export class CvdStream {
   private readonly inner = new NativeCvdStream();
 
-  public init(series: PriceSeries): Float64Array {
-    return this.inner.init(validatePriceSeries(series));
+  public init(series: PriceSeries, output: Float64Array): Float64Array {
+    const data = validatePriceSeries(series);
+    const result = validateStreamOutput(output, data.length, "output");
+    this.inner.initInto(data, result);
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): number | undefined {
-    return optional(this.inner.next(validateFiniteNumber(value, "value")));
+    return optional(this.inner.next(validateNumber(value, "value")));
+  }
+
+  public nextInto(value: number, output: Float64Array): boolean {
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(validateNumber(value, "value"), result);
   }
 
   public reset(): void {
@@ -341,13 +495,66 @@ export class MacdStream {
     );
   }
 
-  public init(series: PriceSeries): MacdPoint[] {
-    return this.inner.init(validatePriceSeries(series)).map(mapMacdPoint);
+  public init(series: PriceSeries, output: MacdOutput): MacdOutput {
+    const data = validatePriceSeries(series);
+    output.macd = validateStreamOutput(output.macd, data.length, "output.macd");
+    output.signal = validateStreamOutput(
+      output.signal,
+      data.length,
+      "output.signal",
+    );
+    output.histogram = validateStreamOutput(
+      output.histogram,
+      data.length,
+      "output.histogram",
+    );
+    this.inner.initInto(data, output.macd, output.signal, output.histogram);
+    return output;
+  }
+
+  public history(): MacdOutput {
+    const value = this.inner.history();
+    return {
+      macd: value.macd,
+      signal: value.signal,
+      histogram: value.histogram,
+    };
+  }
+
+  public historyInto(output: MacdOutput): MacdOutput {
+    output.macd = validateHistoryOutput(output.macd, "output.macd");
+    output.signal = validateHistoryOutput(output.signal, "output.signal");
+    output.histogram = validateHistoryOutput(
+      output.histogram,
+      "output.histogram",
+    );
+    this.inner.historyInto(output.macd, output.signal, output.histogram);
+    return output;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): MacdPoint | undefined {
-    const result = this.inner.next(validateFiniteNumber(value, "value"));
+    const result = this.inner.next(validateNumber(value, "value"));
     return result === null ? undefined : mapMacdPoint(result);
+  }
+
+  public nextInto(value: number, output: MacdOutput): boolean {
+    output.macd = validateStreamOutput(output.macd, 1, "output.macd");
+    output.signal = validateStreamOutput(output.signal, 1, "output.signal");
+    output.histogram = validateStreamOutput(
+      output.histogram,
+      1,
+      "output.histogram",
+    );
+    return this.inner.nextInto(
+      validateNumber(value, "value"),
+      output.macd,
+      output.signal,
+      output.histogram,
+    );
   }
 
   public reset(): void {
@@ -379,13 +586,94 @@ export class BBandsStream {
     this.inner = new NativeBBandsStream(values.period, values.k);
   }
 
-  public init(series: PriceSeries): BBandsPoint[] {
-    return this.inner.init(validatePriceSeries(series)).map(mapBbandsPoint);
+  public init(series: PriceSeries, output: BBandsOutput): BBandsOutput {
+    const data = validatePriceSeries(series);
+    output.upper = validateStreamOutput(output.upper, data.length, "output.upper");
+    output.middle = validateStreamOutput(
+      output.middle,
+      data.length,
+      "output.middle",
+    );
+    output.lower = validateStreamOutput(output.lower, data.length, "output.lower");
+    output.percentB = validateStreamOutput(
+      output.percentB,
+      data.length,
+      "output.percentB",
+    );
+    output.bandwidth = validateStreamOutput(
+      output.bandwidth,
+      data.length,
+      "output.bandwidth",
+    );
+    this.inner.initInto(
+      data,
+      output.upper,
+      output.middle,
+      output.lower,
+      output.percentB,
+      output.bandwidth,
+    );
+    return output;
+  }
+
+  public history(): BBandsOutput {
+    const value = this.inner.history();
+    return {
+      upper: value.upper,
+      middle: value.middle,
+      lower: value.lower,
+      percentB: value.percentB,
+      bandwidth: value.bandwidth,
+    };
+  }
+
+  public historyInto(output: BBandsOutput): BBandsOutput {
+    output.upper = validateHistoryOutput(output.upper, "output.upper");
+    output.middle = validateHistoryOutput(output.middle, "output.middle");
+    output.lower = validateHistoryOutput(output.lower, "output.lower");
+    output.percentB = validateHistoryOutput(output.percentB, "output.percentB");
+    output.bandwidth = validateHistoryOutput(output.bandwidth, "output.bandwidth");
+    this.inner.historyInto(
+      output.upper,
+      output.middle,
+      output.lower,
+      output.percentB,
+      output.bandwidth,
+    );
+    return output;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): BBandsPoint | undefined {
-    const result = this.inner.next(validateFiniteNumber(value, "value"));
+    const result = this.inner.next(validateNumber(value, "value"));
     return result === null ? undefined : mapBbandsPoint(result);
+  }
+
+  public nextInto(value: number, output: BBandsOutput): boolean {
+    output.upper = validateStreamOutput(output.upper, 1, "output.upper");
+    output.middle = validateStreamOutput(output.middle, 1, "output.middle");
+    output.lower = validateStreamOutput(output.lower, 1, "output.lower");
+    output.percentB = validateStreamOutput(
+      output.percentB,
+      1,
+      "output.percentB",
+    );
+    output.bandwidth = validateStreamOutput(
+      output.bandwidth,
+      1,
+      "output.bandwidth",
+    );
+    return this.inner.nextInto(
+      validateNumber(value, "value"),
+      output.upper,
+      output.middle,
+      output.lower,
+      output.percentB,
+      output.bandwidth,
+    );
   }
 
   public reset(): void {
@@ -418,15 +706,53 @@ export class StochStream {
     );
   }
 
-  public init(series: HlcSeries): StochPoint[] {
+  public init(series: HlcSeries, output: StochOutput): StochOutput {
     const values = validateHlcSeries(series);
-    return this.inner.init(values.high, values.low, values.close).map(mapStochPoint);
+    output.k = validateStreamOutput(output.k, values.high.length, "output.k");
+    output.d = validateStreamOutput(output.d, values.high.length, "output.d");
+    this.inner.initInto(
+      values.high,
+      values.low,
+      values.close,
+      output.k,
+      output.d,
+    );
+    return output;
+  }
+
+  public history(): StochOutput {
+    const value = this.inner.history();
+    return { k: value.k, d: value.d };
+  }
+
+  public historyInto(output: StochOutput): StochOutput {
+    output.k = validateHistoryOutput(output.k, "output.k");
+    output.d = validateHistoryOutput(output.d, "output.d");
+    this.inner.historyInto(output.k, output.d);
+    return output;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: HlcBar): StochPoint | undefined {
     const values = validateHlcBar(bar);
     const result = this.inner.next(values.high, values.low, values.close);
     return result === null ? undefined : mapStochPoint(result);
+  }
+
+  public nextInto(bar: HlcBar, output: StochOutput): boolean {
+    const values = validateHlcBar(bar);
+    output.k = validateStreamOutput(output.k, 1, "output.k");
+    output.d = validateStreamOutput(output.d, 1, "output.d");
+    return this.inner.nextInto(
+      values.high,
+      values.low,
+      values.close,
+      output.k,
+      output.d,
+    );
   }
 
   public reset(): void {
@@ -463,13 +789,43 @@ export class StochRsiStream {
     );
   }
 
-  public init(series: PriceSeries): StochRsiPoint[] {
-    return this.inner.init(validatePriceSeries(series)).map(mapStochRsiPoint);
+  public init(series: PriceSeries, output: StochRsiOutput): StochRsiOutput {
+    const data = validatePriceSeries(series);
+    output.k = validateStreamOutput(output.k, data.length, "output.k");
+    output.d = validateStreamOutput(output.d, data.length, "output.d");
+    this.inner.initInto(data, output.k, output.d);
+    return output;
+  }
+
+  public history(): StochRsiOutput {
+    const value = this.inner.history();
+    return { k: value.k, d: value.d };
+  }
+
+  public historyInto(output: StochRsiOutput): StochRsiOutput {
+    output.k = validateHistoryOutput(output.k, "output.k");
+    output.d = validateHistoryOutput(output.d, "output.d");
+    this.inner.historyInto(output.k, output.d);
+    return output;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): StochRsiPoint | undefined {
-    const result = this.inner.next(validateFiniteNumber(value, "value"));
+    const result = this.inner.next(validateNumber(value, "value"));
     return result === null ? undefined : mapStochRsiPoint(result);
+  }
+
+  public nextInto(value: number, output: StochRsiOutput): boolean {
+    output.k = validateStreamOutput(output.k, 1, "output.k");
+    output.d = validateStreamOutput(output.d, 1, "output.d");
+    return this.inner.nextInto(
+      validateNumber(value, "value"),
+      output.k,
+      output.d,
+    );
   }
 
   public reset(): void {
@@ -504,14 +860,36 @@ export class AtrStream {
     this.inner = new NativeAtrStream(periodOption(options));
   }
 
-  public init(series: HlcSeries): Float64Array {
+  public init(series: HlcSeries, output: Float64Array): Float64Array {
     const values = validateHlcSeries(series);
-    return this.inner.init(values.high, values.low, values.close);
+    const result = validateStreamOutput(output, values.high.length, "output");
+    this.inner.initInto(values.high, values.low, values.close, result);
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: HlcBar): number | undefined {
     const values = validateHlcBar(bar);
     return optional(this.inner.next(values.high, values.low, values.close));
+  }
+
+  public nextInto(bar: HlcBar, output: Float64Array): boolean {
+    const values = validateHlcBar(bar);
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(values.high, values.low, values.close, result);
   }
 
   public reset(): void {
@@ -538,15 +916,49 @@ export class MfiStream {
     this.inner = new NativeMfiStream(periodOption(options));
   }
 
-  public init(series: HlcvSeries): Float64Array {
+  public init(series: HlcvSeries, output: Float64Array): Float64Array {
     const values = validateHlcvSeries(series);
-    return this.inner.init(values.high, values.low, values.close, values.volume);
+    const result = validateStreamOutput(output, values.high.length, "output");
+    this.inner.initInto(
+      values.high,
+      values.low,
+      values.close,
+      values.volume,
+      result,
+    );
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: HlcvBar): number | undefined {
     const values = validateHlcvBar(bar);
     return optional(
       this.inner.next(values.high, values.low, values.close, values.volume),
+    );
+  }
+
+  public nextInto(bar: HlcvBar, output: Float64Array): boolean {
+    const values = validateHlcvBar(bar);
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(
+      values.high,
+      values.low,
+      values.close,
+      values.volume,
+      result,
     );
   }
 
@@ -570,15 +982,49 @@ export class MfiStream {
 export class CvdOhlcvStream {
   private readonly inner = new NativeCvdOhlcvStream();
 
-  public init(series: HlcvSeries): Float64Array {
+  public init(series: HlcvSeries, output: Float64Array): Float64Array {
     const values = validateHlcvSeries(series);
-    return this.inner.init(values.high, values.low, values.close, values.volume);
+    const result = validateStreamOutput(output, values.high.length, "output");
+    this.inner.initInto(
+      values.high,
+      values.low,
+      values.close,
+      values.volume,
+      result,
+    );
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: HlcvBar): number | undefined {
     const values = validateHlcvBar(bar);
     return optional(
       this.inner.next(values.high, values.low, values.close, values.volume),
+    );
+  }
+
+  public nextInto(bar: HlcvBar, output: Float64Array): boolean {
+    const values = validateHlcvBar(bar);
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(
+      values.high,
+      values.low,
+      values.close,
+      values.volume,
+      result,
     );
   }
 
@@ -602,17 +1048,70 @@ export class AdxStream {
     this.inner = new NativeAdxStream(periodOption(options));
   }
 
-  public init(series: HlcSeries): AdxPoint[] {
+  public init(series: HlcSeries, output: AdxOutput): AdxOutput {
     const values = validateHlcSeries(series);
-    return this.inner
-      .init(values.high, values.low, values.close)
-      .map(mapAdxPoint);
+    output.adx = validateStreamOutput(output.adx, values.high.length, "output.adx");
+    output.plusDi = validateStreamOutput(
+      output.plusDi,
+      values.high.length,
+      "output.plusDi",
+    );
+    output.minusDi = validateStreamOutput(
+      output.minusDi,
+      values.high.length,
+      "output.minusDi",
+    );
+    this.inner.initInto(
+      values.high,
+      values.low,
+      values.close,
+      output.adx,
+      output.plusDi,
+      output.minusDi,
+    );
+    return output;
+  }
+
+  public history(): AdxOutput {
+    const value = this.inner.history();
+    return {
+      adx: value.adx,
+      plusDi: value.plusDi,
+      minusDi: value.minusDi,
+    };
+  }
+
+  public historyInto(output: AdxOutput): AdxOutput {
+    output.adx = validateHistoryOutput(output.adx, "output.adx");
+    output.plusDi = validateHistoryOutput(output.plusDi, "output.plusDi");
+    output.minusDi = validateHistoryOutput(output.minusDi, "output.minusDi");
+    this.inner.historyInto(output.adx, output.plusDi, output.minusDi);
+    return output;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: HlcBar): AdxPoint | undefined {
     const values = validateHlcBar(bar);
     const result = this.inner.next(values.high, values.low, values.close);
     return result === null ? undefined : mapAdxPoint(result);
+  }
+
+  public nextInto(bar: HlcBar, output: AdxOutput): boolean {
+    const values = validateHlcBar(bar);
+    output.adx = validateStreamOutput(output.adx, 1, "output.adx");
+    output.plusDi = validateStreamOutput(output.plusDi, 1, "output.plusDi");
+    output.minusDi = validateStreamOutput(output.minusDi, 1, "output.minusDi");
+    return this.inner.nextInto(
+      values.high,
+      values.low,
+      values.close,
+      output.adx,
+      output.plusDi,
+      output.minusDi,
+    );
   }
 
   public reset(): void {
@@ -645,17 +1144,121 @@ export class IchimokuStream {
     );
   }
 
-  public init(series: HlcSeries): IchimokuPoint[] {
+  public init(series: HlcSeries, output: IchimokuOutput): IchimokuOutput {
     const values = validateHlcSeries(series);
-    return this.inner
-      .init(values.high, values.low, values.close)
-      .map(mapIchimokuPoint);
+    output.tenkanSen = validateStreamOutput(
+      output.tenkanSen,
+      values.high.length,
+      "output.tenkanSen",
+    );
+    output.kijunSen = validateStreamOutput(
+      output.kijunSen,
+      values.high.length,
+      "output.kijunSen",
+    );
+    output.senkouSpanA = validateStreamOutput(
+      output.senkouSpanA,
+      values.high.length,
+      "output.senkouSpanA",
+    );
+    output.senkouSpanB = validateStreamOutput(
+      output.senkouSpanB,
+      values.high.length,
+      "output.senkouSpanB",
+    );
+    output.chikouSpan = validateStreamOutput(
+      output.chikouSpan,
+      values.high.length,
+      "output.chikouSpan",
+    );
+    this.inner.initInto(
+      values.high,
+      values.low,
+      values.close,
+      output.tenkanSen,
+      output.kijunSen,
+      output.senkouSpanA,
+      output.senkouSpanB,
+      output.chikouSpan,
+    );
+    return output;
+  }
+
+  public history(): IchimokuOutput {
+    const value = this.inner.history();
+    return {
+      tenkanSen: value.tenkanSen,
+      kijunSen: value.kijunSen,
+      senkouSpanA: value.senkouSpanA,
+      senkouSpanB: value.senkouSpanB,
+      chikouSpan: value.chikouSpan,
+    };
+  }
+
+  public historyInto(output: IchimokuOutput): IchimokuOutput {
+    output.tenkanSen = validateHistoryOutput(output.tenkanSen, "output.tenkanSen");
+    output.kijunSen = validateHistoryOutput(output.kijunSen, "output.kijunSen");
+    output.senkouSpanA = validateHistoryOutput(
+      output.senkouSpanA,
+      "output.senkouSpanA",
+    );
+    output.senkouSpanB = validateHistoryOutput(
+      output.senkouSpanB,
+      "output.senkouSpanB",
+    );
+    output.chikouSpan = validateHistoryOutput(
+      output.chikouSpan,
+      "output.chikouSpan",
+    );
+    this.inner.historyInto(
+      output.tenkanSen,
+      output.kijunSen,
+      output.senkouSpanA,
+      output.senkouSpanB,
+      output.chikouSpan,
+    );
+    return output;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: HlcBar): IchimokuPoint | undefined {
     const values = validateHlcBar(bar);
     const result = this.inner.next(values.high, values.low, values.close);
     return result === null ? undefined : mapIchimokuPoint(result);
+  }
+
+  public nextInto(bar: HlcBar, output: IchimokuOutput): boolean {
+    const values = validateHlcBar(bar);
+    output.tenkanSen = validateStreamOutput(output.tenkanSen, 1, "output.tenkanSen");
+    output.kijunSen = validateStreamOutput(output.kijunSen, 1, "output.kijunSen");
+    output.senkouSpanA = validateStreamOutput(
+      output.senkouSpanA,
+      1,
+      "output.senkouSpanA",
+    );
+    output.senkouSpanB = validateStreamOutput(
+      output.senkouSpanB,
+      1,
+      "output.senkouSpanB",
+    );
+    output.chikouSpan = validateStreamOutput(
+      output.chikouSpan,
+      1,
+      "output.chikouSpan",
+    );
+    return this.inner.nextInto(
+      values.high,
+      values.low,
+      values.close,
+      output.tenkanSen,
+      output.kijunSen,
+      output.senkouSpanA,
+      output.senkouSpanB,
+      output.chikouSpan,
+    );
   }
 
   public reset(): void {
@@ -687,13 +1290,85 @@ export class LinRegStream {
     this.inner = new NativeLinRegStream(values.period, values.numStdDev);
   }
 
-  public init(series: PriceSeries): LinRegPoint[] {
-    return this.inner.init(validatePriceSeries(series)).map(mapLinRegPoint);
+  public init(series: PriceSeries, output: LinRegOutput): LinRegOutput {
+    const data = validatePriceSeries(series);
+    output.value = validateStreamOutput(output.value, data.length, "output.value");
+    output.upper = validateStreamOutput(output.upper, data.length, "output.upper");
+    output.lower = validateStreamOutput(output.lower, data.length, "output.lower");
+    output.slope = validateStreamOutput(output.slope, data.length, "output.slope");
+    output.r = validateStreamOutput(output.r, data.length, "output.r");
+    output.rSquared = validateStreamOutput(
+      output.rSquared,
+      data.length,
+      "output.rSquared",
+    );
+    this.inner.initInto(
+      data,
+      output.value,
+      output.upper,
+      output.lower,
+      output.slope,
+      output.r,
+      output.rSquared,
+    );
+    return output;
+  }
+
+  public history(): LinRegOutput {
+    const value = this.inner.history();
+    return {
+      value: value.value,
+      upper: value.upper,
+      lower: value.lower,
+      slope: value.slope,
+      r: value.r,
+      rSquared: value.rSquared,
+    };
+  }
+
+  public historyInto(output: LinRegOutput): LinRegOutput {
+    output.value = validateHistoryOutput(output.value, "output.value");
+    output.upper = validateHistoryOutput(output.upper, "output.upper");
+    output.lower = validateHistoryOutput(output.lower, "output.lower");
+    output.slope = validateHistoryOutput(output.slope, "output.slope");
+    output.r = validateHistoryOutput(output.r, "output.r");
+    output.rSquared = validateHistoryOutput(output.rSquared, "output.rSquared");
+    this.inner.historyInto(
+      output.value,
+      output.upper,
+      output.lower,
+      output.slope,
+      output.r,
+      output.rSquared,
+    );
+    return output;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(value: number): LinRegPoint | undefined {
-    const result = this.inner.next(validateFiniteNumber(value, "value"));
+    const result = this.inner.next(validateNumber(value, "value"));
     return result === null ? undefined : mapLinRegPoint(result);
+  }
+
+  public nextInto(value: number, output: LinRegOutput): boolean {
+    output.value = validateStreamOutput(output.value, 1, "output.value");
+    output.upper = validateStreamOutput(output.upper, 1, "output.upper");
+    output.lower = validateStreamOutput(output.lower, 1, "output.lower");
+    output.slope = validateStreamOutput(output.slope, 1, "output.slope");
+    output.r = validateStreamOutput(output.r, 1, "output.r");
+    output.rSquared = validateStreamOutput(output.rSquared, 1, "output.rSquared");
+    return this.inner.nextInto(
+      validateNumber(value, "value"),
+      output.value,
+      output.upper,
+      output.lower,
+      output.slope,
+      output.r,
+      output.rSquared,
+    );
   }
 
   public reset(): void {
@@ -716,15 +1391,35 @@ export class LinRegStream {
 export class SessionVwapStream {
   private readonly inner = new NativeSessionVwapStream();
 
-  public init(series: TimestampedHlcvSeries): Float64Array {
+  public init(
+    series: TimestampedHlcvSeries,
+    output: Float64Array,
+  ): Float64Array {
     const values = validateTimestampedHlcvSeries(series);
-    return this.inner.init(
+    const result = validateStreamOutput(output, values.timestamp.length, "output");
+    this.inner.initInto(
       values.timestamp,
       values.high,
       values.low,
       values.close,
       values.volume,
+      result,
     );
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: TimestampedHlcvBar): number | undefined {
@@ -737,6 +1432,19 @@ export class SessionVwapStream {
         values.close,
         values.volume,
       ),
+    );
+  }
+
+  public nextInto(bar: TimestampedHlcvBar, output: Float64Array): boolean {
+    const values = validateTimestampedHlcvBar(bar);
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(
+      values.timestamp,
+      values.high,
+      values.low,
+      values.close,
+      values.volume,
+      result,
     );
   }
 
@@ -768,15 +1476,35 @@ export class RollingVwapStream {
     this.inner = new NativeRollingVwapStream(periodOption(options));
   }
 
-  public init(series: TimestampedHlcvSeries): Float64Array {
+  public init(
+    series: TimestampedHlcvSeries,
+    output: Float64Array,
+  ): Float64Array {
     const values = validateTimestampedHlcvSeries(series);
-    return this.inner.init(
+    const result = validateStreamOutput(output, values.timestamp.length, "output");
+    this.inner.initInto(
       values.timestamp,
       values.high,
       values.low,
       values.close,
       values.volume,
+      result,
     );
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: TimestampedHlcvBar): number | undefined {
@@ -789,6 +1517,19 @@ export class RollingVwapStream {
         values.close,
         values.volume,
       ),
+    );
+  }
+
+  public nextInto(bar: TimestampedHlcvBar, output: Float64Array): boolean {
+    const values = validateTimestampedHlcvBar(bar);
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(
+      values.timestamp,
+      values.high,
+      values.low,
+      values.close,
+      values.volume,
+      result,
     );
   }
 
@@ -842,15 +1583,35 @@ export class AnchoredVwapStream {
     this.inner.anchorNow();
   }
 
-  public init(series: TimestampedHlcvSeries): Float64Array {
+  public init(
+    series: TimestampedHlcvSeries,
+    output: Float64Array,
+  ): Float64Array {
     const values = validateTimestampedHlcvSeries(series);
-    return this.inner.init(
+    const result = validateStreamOutput(output, values.timestamp.length, "output");
+    this.inner.initInto(
       values.timestamp,
       values.high,
       values.low,
       values.close,
       values.volume,
+      result,
     );
+    return result;
+  }
+
+  public history(): Float64Array {
+    return this.inner.history();
+  }
+
+  public historyInto(output: Float64Array): Float64Array {
+    const result = validateHistoryOutput(output, "output");
+    this.inner.historyInto(result);
+    return result;
+  }
+
+  public get historyLength(): number {
+    return this.inner.historyLength;
   }
 
   public next(bar: TimestampedHlcvBar): number | undefined {
@@ -863,6 +1624,19 @@ export class AnchoredVwapStream {
         values.close,
         values.volume,
       ),
+    );
+  }
+
+  public nextInto(bar: TimestampedHlcvBar, output: Float64Array): boolean {
+    const values = validateTimestampedHlcvBar(bar);
+    const result = validateStreamOutput(output, 1, "output");
+    return this.inner.nextInto(
+      values.timestamp,
+      values.high,
+      values.low,
+      values.close,
+      values.volume,
+      result,
     );
   }
 

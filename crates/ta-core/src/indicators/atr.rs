@@ -25,7 +25,7 @@
 //! let result = atr.calculate(&(&highs, &lows, &closes)).unwrap();
 //! ```
 
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// ATR calculator for batch operations.
@@ -87,40 +87,13 @@ impl Indicator<&AtrInput<'_>, Vec<f64>> for Atr {
             ));
         }
 
-        let mut result = vec![f64::NAN; len];
-
-        if len == 0 {
-            return Ok(result);
-        }
-
-        // Calculate True Ranges
-        let mut true_ranges = Vec::with_capacity(len);
-        true_ranges.push(Self::true_range(highs[0], lows[0], None));
-
-        for i in 1..len {
-            true_ranges.push(Self::true_range(highs[i], lows[i], Some(closes[i - 1])));
-        }
-
-        // Need at least `period` values to calculate first ATR
-        if len < self.period {
-            return Ok(result);
-        }
-
-        // First ATR: simple average of first `period` true ranges
-        let first_atr: f64 = true_ranges[..self.period].iter().sum::<f64>() / self.period as f64;
-        result[self.period - 1] = first_atr;
-
-        // Subsequent ATRs: Wilder's smoothing
-        let mut prev_atr = first_atr;
-        let n = self.period as f64;
-
-        for i in self.period..len {
-            let atr = ((prev_atr * (n - 1.0)) + true_ranges[i]) / n;
-            result[i] = atr;
-            prev_atr = atr;
-        }
-
-        Ok(result)
+        let mut stream = AtrStream::new(self.period)?;
+        collect_stream(
+            &mut stream,
+            len,
+            |index| (highs[index], lows[index], closes[index]),
+            || f64::NAN,
+        )
     }
 }
 

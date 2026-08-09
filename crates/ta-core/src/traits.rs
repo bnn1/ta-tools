@@ -57,3 +57,52 @@ pub trait StreamingIndicator<Input, Output> {
     /// Returns `true` if the indicator has been initialized with enough data.
     fn is_ready(&self) -> bool;
 }
+
+/// Drive a streaming indicator over a finite input sequence.
+///
+/// This is the canonical batch driver for indicators that have an incremental
+/// state machine. The caller supplies an input factory so columnar inputs do
+/// not need to be materialized as temporary bar vectors.
+pub fn collect_stream<I, Input, Output, MakeInput, MakeUnavailable>(
+    stream: &mut I,
+    len: usize,
+    make_input: MakeInput,
+    mut make_unavailable: MakeUnavailable,
+) -> IndicatorResult<Vec<Output>>
+where
+    I: StreamingIndicator<Input, Output>,
+    MakeInput: FnMut(usize) -> Input,
+    MakeUnavailable: FnMut() -> Output,
+{
+    let mut result = Vec::with_capacity(len);
+    stream_into(stream, len, make_input, |_, output| {
+        result.push(match output {
+            Some(output) => output,
+            None => make_unavailable(),
+        });
+    })?;
+
+    Ok(result)
+}
+
+/// Drive a streaming indicator over a finite input sequence without creating
+/// an intermediate output vector.
+pub fn stream_into<I, Input, Output, MakeInput, Write>(
+    stream: &mut I,
+    len: usize,
+    mut make_input: MakeInput,
+    mut write: Write,
+) -> IndicatorResult<()>
+where
+    I: StreamingIndicator<Input, Output>,
+    MakeInput: FnMut(usize) -> Input,
+    Write: FnMut(usize, Option<Output>),
+{
+    stream.reset();
+
+    for index in 0..len {
+        write(index, stream.next(make_input(index)));
+    }
+
+    Ok(())
+}

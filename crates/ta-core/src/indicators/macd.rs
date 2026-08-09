@@ -24,7 +24,7 @@
 //! ```
 
 use crate::indicators::{EmaStream, SmaStream};
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// MACD output containing all three components.
@@ -149,68 +149,18 @@ impl Macd {
 
 impl Indicator<&[f64], Vec<MacdOutput>> for Macd {
     fn calculate(&self, data: &[f64]) -> IndicatorResult<Vec<MacdOutput>> {
-        let len = data.len();
-        let mut result = vec![MacdOutput::nan(); len];
-
-        // Need at least slow_period values to start calculating MACD line
-        if len < self.slow_period {
-            return Ok(result);
-        }
-
-        // Calculate fast and slow EMAs
-        let mut fast_ema = EmaStream::new(self.fast_period)?;
-        let mut slow_ema = EmaStream::new(self.slow_period)?;
-
-        let fast_values = fast_ema.init(data)?;
-        let slow_values = slow_ema.init(data)?;
-
-        // Calculate MACD line
-        let mut macd_line = vec![f64::NAN; len];
-        for i in (self.slow_period - 1)..len {
-            macd_line[i] = fast_values[i] - slow_values[i];
-        }
-
-        // Calculate signal line from MACD values
-        // We need signal_period valid MACD values
-        let valid_macd_start = self.slow_period - 1;
-        let signal_start = valid_macd_start + self.signal_period - 1;
-
-        if len <= signal_start {
-            // Can calculate MACD but not signal
-            for i in valid_macd_start..len {
-                result[i] = MacdOutput::new(macd_line[i], f64::NAN, f64::NAN);
-            }
-            return Ok(result);
-        }
-
-        // Get valid MACD values for signal calculation
-        let valid_macd: Vec<f64> = macd_line[valid_macd_start..].to_vec();
-
-        let signal_values = match self.signal_type {
-            SignalType::Ema => {
-                let mut signal_ema = EmaStream::new(self.signal_period)?;
-                signal_ema.init(&valid_macd)?
-            }
-            SignalType::Sma => {
-                let mut signal_sma = SmaStream::new(self.signal_period)?;
-                signal_sma.init(&valid_macd)?
-            }
-        };
-
-        // Combine results
-        for i in valid_macd_start..len {
-            let macd_idx = i - valid_macd_start;
-            let macd = macd_line[i];
-            let signal = signal_values[macd_idx];
-            let histogram = if signal.is_nan() {
-                f64::NAN
-            } else {
-                macd - signal
-            };
-            result[i] = MacdOutput::new(macd, signal, histogram);
-        }
-
-        Ok(result)
+        let mut stream = MacdStream::with_signal_type(
+            self.fast_period,
+            self.slow_period,
+            self.signal_period,
+            self.signal_type,
+        )?;
+        collect_stream(
+            &mut stream,
+            data.len(),
+            |index| data[index],
+            MacdOutput::nan,
+        )
     }
 }
 
@@ -224,7 +174,6 @@ pub struct MacdStream {
     slow_period: usize,
     signal_period: usize,
     count: usize,
-    macd_buffer: Vec<f64>,
 }
 
 impl MacdStream {
@@ -271,7 +220,6 @@ impl MacdStream {
             slow_period,
             signal_period,
             count: 0,
-            macd_buffer: Vec::with_capacity(signal_period),
         })
     }
 
@@ -342,7 +290,6 @@ impl StreamingIndicator<f64, MacdOutput> for MacdStream {
             sma.reset();
         }
         self.count = 0;
-        self.macd_buffer.clear();
     }
 
     fn is_ready(&self) -> bool {

@@ -32,7 +32,7 @@
 //! # Default Period
 //! - 14 periods (standard)
 
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// ADX output structure containing ADX, +DI, and -DI values.
@@ -131,88 +131,13 @@ impl Indicator<&AdxInput<'_>, Vec<AdxOutput>> for Adx {
             ));
         }
 
-        let mut result = vec![AdxOutput::nan(); len];
-
-        if len < 2 {
-            return Ok(result);
-        }
-
-        // Calculate TR, +DM, -DM for each bar (starting from index 1)
-        let mut tr_values = vec![0.0; len];
-        let mut plus_dm_values = vec![0.0; len];
-        let mut minus_dm_values = vec![0.0; len];
-
-        for i in 1..len {
-            tr_values[i] = Self::true_range(highs[i], lows[i], closes[i - 1]);
-            let (plus_dm, minus_dm) =
-                Self::directional_movement(highs[i], lows[i], highs[i - 1], lows[i - 1]);
-            plus_dm_values[i] = plus_dm;
-            minus_dm_values[i] = minus_dm;
-        }
-
-        // Need at least period + 1 values to calculate first smoothed values
-        if len <= self.period {
-            return Ok(result);
-        }
-
-        // First smoothed values: sum of first `period` values
-        let mut smoothed_tr: f64 = tr_values[1..=self.period].iter().sum();
-        let mut smoothed_plus_dm: f64 = plus_dm_values[1..=self.period].iter().sum();
-        let mut smoothed_minus_dm: f64 = minus_dm_values[1..=self.period].iter().sum();
-
-        // Calculate first +DI and -DI
-        let mut di_values = Vec::with_capacity(len);
-        for _ in 0..=self.period {
-            di_values.push((f64::NAN, f64::NAN, f64::NAN)); // (plus_di, minus_di, dx)
-        }
-
-        // First DI values at index = period
-        let (plus_di, minus_di, dx) =
-            calculate_di_and_dx(smoothed_plus_dm, smoothed_minus_dm, smoothed_tr);
-        di_values[self.period] = (plus_di, minus_di, dx);
-
-        result[self.period].plus_di = plus_di;
-        result[self.period].minus_di = minus_di;
-
-        // Continue with Wilder's smoothing for subsequent bars
-        let n = self.period as f64;
-        for i in (self.period + 1)..len {
-            // Wilder's smoothing: smooth = prev_smooth - (prev_smooth / n) + current
-            smoothed_tr = smoothed_tr - (smoothed_tr / n) + tr_values[i];
-            smoothed_plus_dm = smoothed_plus_dm - (smoothed_plus_dm / n) + plus_dm_values[i];
-            smoothed_minus_dm = smoothed_minus_dm - (smoothed_minus_dm / n) + minus_dm_values[i];
-
-            let (plus_di, minus_di, dx) =
-                calculate_di_and_dx(smoothed_plus_dm, smoothed_minus_dm, smoothed_tr);
-            di_values.push((plus_di, minus_di, dx));
-
-            result[i].plus_di = plus_di;
-            result[i].minus_di = minus_di;
-        }
-
-        // Now calculate ADX: smoothed average of DX over period
-        // ADX starts at index = 2 * period - 1
-        if len < 2 * self.period {
-            return Ok(result);
-        }
-
-        // First ADX: average of first `period` DX values
-        let dx_start = self.period;
-        let dx_slice: Vec<f64> = di_values[dx_start..(dx_start + self.period)]
-            .iter()
-            .map(|(_, _, dx)| *dx)
-            .collect();
-        let mut adx: f64 = dx_slice.iter().sum::<f64>() / n;
-        result[2 * self.period - 1].adx = adx;
-
-        // Subsequent ADX values using Wilder's smoothing
-        for i in (2 * self.period)..len {
-            let dx = di_values[i].2;
-            adx = ((adx * (n - 1.0)) + dx) / n;
-            result[i].adx = adx;
-        }
-
-        Ok(result)
+        let mut stream = AdxStream::new(self.period)?;
+        collect_stream(
+            &mut stream,
+            len,
+            |index| (highs[index], lows[index], closes[index]),
+            AdxOutput::nan,
+        )
     }
 }
 

@@ -21,7 +21,7 @@
 //! - Senkou Span A/B: shift forward by kijun_period (26)
 //! - Chikou Span: shift backward by kijun_period (26)
 
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 use std::collections::VecDeque;
 
@@ -134,45 +134,14 @@ impl Indicator<&IchimokuInput<'_>, Vec<IchimokuOutput>> for Ichimoku {
             ));
         }
 
-        let mut result = vec![IchimokuOutput::nan(); len];
-
-        if len == 0 {
-            return Ok(result);
-        }
-
-        for i in 0..len {
-            let mut output = IchimokuOutput::nan();
-
-            // Tenkan-sen: available after tenkan_period values
-            if i >= self.tenkan_period - 1 {
-                let start = i + 1 - self.tenkan_period;
-                output.tenkan_sen = Self::donchian_midpoint(&highs[start..=i], &lows[start..=i]);
-            }
-
-            // Kijun-sen: available after kijun_period values
-            if i >= self.kijun_period - 1 {
-                let start = i + 1 - self.kijun_period;
-                output.kijun_sen = Self::donchian_midpoint(&highs[start..=i], &lows[start..=i]);
-            }
-
-            // Senkou Span A: average of Tenkan and Kijun (when both available)
-            if !output.tenkan_sen.is_nan() && !output.kijun_sen.is_nan() {
-                output.senkou_span_a = (output.tenkan_sen + output.kijun_sen) / 2.0;
-            }
-
-            // Senkou Span B: available after senkou_b_period values
-            if i >= self.senkou_b_period - 1 {
-                let start = i + 1 - self.senkou_b_period;
-                output.senkou_span_b = Self::donchian_midpoint(&highs[start..=i], &lows[start..=i]);
-            }
-
-            // Chikou Span: just the close (caller handles the offset)
-            output.chikou_span = closes[i];
-
-            result[i] = output;
-        }
-
-        Ok(result)
+        let mut stream =
+            IchimokuStream::new(self.tenkan_period, self.kijun_period, self.senkou_b_period)?;
+        collect_stream(
+            &mut stream,
+            len,
+            |index| (highs[index], lows[index], closes[index]),
+            IchimokuOutput::nan,
+        )
     }
 }
 
@@ -187,11 +156,6 @@ pub struct IchimokuStream {
     tenkan_period: usize,
     kijun_period: usize,
     senkou_b_period: usize,
-    // Ring buffers for high/low values
-    high_buffer: Vec<f64>,
-    low_buffer: Vec<f64>,
-    close_buffer: Vec<f64>,
-    head: usize,
     count: usize,
     // Monotonic deques for efficient min/max tracking
     // For tenkan (shortest period)
@@ -221,17 +185,10 @@ impl IchimokuStream {
             ));
         }
 
-        // Buffer size needs to be the largest period
-        let max_period = senkou_b_period.max(kijun_period).max(tenkan_period);
-
         Ok(Self {
             tenkan_period,
             kijun_period,
             senkou_b_period,
-            high_buffer: vec![0.0; max_period],
-            low_buffer: vec![0.0; max_period],
-            close_buffer: vec![0.0; max_period],
-            head: 0,
             count: 0,
             tenkan_max_deque: VecDeque::new(),
             tenkan_min_deque: VecDeque::new(),
@@ -342,13 +299,6 @@ impl StreamingIndicator<IchimokuBar, IchimokuOutput> for IchimokuStream {
         let idx = self.count;
         self.count += 1;
 
-        // Store in ring buffer
-        let max_period = self.high_buffer.len();
-        let buf_idx = idx % max_period;
-        self.high_buffer[buf_idx] = high;
-        self.low_buffer[buf_idx] = low;
-        self.close_buffer[buf_idx] = close;
-
         // Update all deques with new high value
         Self::update_max_deque(&mut self.tenkan_max_deque, idx, high, self.tenkan_period);
         Self::update_max_deque(&mut self.kijun_max_deque, idx, high, self.kijun_period);
@@ -389,10 +339,6 @@ impl StreamingIndicator<IchimokuBar, IchimokuOutput> for IchimokuStream {
     }
 
     fn reset(&mut self) {
-        self.high_buffer.fill(0.0);
-        self.low_buffer.fill(0.0);
-        self.close_buffer.fill(0.0);
-        self.head = 0;
         self.count = 0;
         self.tenkan_max_deque.clear();
         self.tenkan_min_deque.clear();

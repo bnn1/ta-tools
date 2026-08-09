@@ -21,13 +21,27 @@ const prices = {
   values: new Float64Array([44.34, 44.09, 44.15, 43.61, 44.33, 44.83]),
 };
 
-const average = sma(prices, { period: 3 });
-const bands = bbands(prices, { period: 3, k: 2 });
+const average = sma(prices, { period: 3 }, new Float64Array(prices.values.length));
+const bands = bbands(
+  prices,
+  { period: 3, k: 2 },
+  {
+    upper: new Float64Array(prices.values.length),
+    middle: new Float64Array(prices.values.length),
+    lower: new Float64Array(prices.values.length),
+    percentB: new Float64Array(prices.values.length),
+    bandwidth: new Float64Array(prices.values.length),
+  },
+);
 const trend = macd(prices, {
   fastPeriod: 3,
   slowPeriod: 5,
   signalPeriod: 2,
   signalType: "ema",
+}, {
+  macd: new Float64Array(prices.values.length),
+  signal: new Float64Array(prices.values.length),
+  histogram: new Float64Array(prices.values.length),
 });
 ```
 
@@ -41,17 +55,23 @@ const low = new Float64Array([99, 100, 101]);
 const close = new Float64Array([101, 102, 103]);
 const volume = new Float64Array([1000, 1100, 1200]);
 
-const range = atr({ high, low, close }, { period: 2 });
+const range = atr(
+  { high, low, close },
+  { period: 2 },
+  new Float64Array(high.length),
+);
 const vwap = sessionVwap({
   timestamp: new Float64Array([0, 60_000, 120_000]),
   high,
   low,
   close,
   volume,
-});
+}, new Float64Array(high.length));
 ```
 
 All related columns must have equal lengths and finite values. Timestamps must be safe integer Unix-millisecond values. Invalid inputs throw explicit errors.
+
+Batch output buffers are caller-owned and must have the input length. Reuse them across repeated calculations to avoid allocating and copying a result on every call.
 
 ## Streaming API
 
@@ -63,7 +83,7 @@ import { EmaStream, MacdStream } from "@bnn1/ta-tools";
 const prices = { values: new Float64Array([1, 2, 3, 4]) };
 
 const ema = new EmaStream({ period: 3 });
-ema.init(prices);
+ema.init(prices, new Float64Array(prices.values.length));
 const current = ema.next(5); // number | undefined
 
 const macd = new MacdStream({
@@ -72,11 +92,28 @@ const macd = new MacdStream({
   signalPeriod: 2,
   signalType: "ema",
 });
-macd.init(prices); // MacdPoint[]
+macd.init(prices, {
+  macd: new Float64Array(prices.values.length),
+  signal: new Float64Array(prices.values.length),
+  histogram: new Float64Array(prices.values.length),
+});
 const point = macd.next(5); // MacdPoint | undefined
+
+// Allocation-free stream updates use caller-owned output buffers:
+const nextOutput = new Float64Array(1);
+const ready = ema.nextInto(6, nextOutput); // boolean
 ```
 
-Streams return `undefined` until they can produce a value. Batch results preserve the indicator's leading `NaN` alignment. Native stream objects are garbage-collected normally; no `free()` method is exposed.
+Streams return `undefined` until they can produce a value. Batch results preserve the indicator's leading `NaN` alignment. Every regular stream also keeps its complete output history in native memory: `history()` returns an allocating snapshot, while `historyInto(output)` copies the history into a caller-owned buffer (or output object) whose arrays must have the current history length.
+
+```typescript
+const history = ema.history(); // Float64Array: init output plus every next/nextInto result
+const reusableHistory = new Float64Array(ema.historyLength);
+ema.historyInto(reusableHistory);
+ema.reset(); // clears both indicator state and history
+```
+
+FRVP remains snapshot-only because each output is a full volume-profile histogram rather than a single output series. Native stream objects are garbage-collected normally; no `free()` method is exposed.
 
 ## Multi-indicator analysis
 
@@ -84,8 +121,10 @@ Streams return `undefined` until they can produce a value. Batch results preserv
 import { analyze, rsi, sma } from "@bnn1/ta-tools";
 
 const result = analyze(prices, {
-  average: (series) => sma(series, { period: 3 }),
-  strength: (series) => rsi(series, { period: 3 }),
+  average: (series) =>
+    sma(series, { period: 3 }, new Float64Array(series.values.length)),
+  strength: (series) =>
+    rsi(series, { period: 3 }, new Float64Array(series.values.length)),
 });
 ```
 

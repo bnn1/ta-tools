@@ -40,7 +40,7 @@
 //! let new_rsi = rsi.next(44.0);
 //! ```
 
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// Relative Strength Index calculator for batch operations.
@@ -74,45 +74,8 @@ impl Rsi {
 
 impl Indicator<&[f64], Vec<f64>> for Rsi {
     fn calculate(&self, data: &[f64]) -> IndicatorResult<Vec<f64>> {
-        let len = data.len();
-        let mut result = vec![f64::NAN; len];
-
-        // Need at least period + 1 values to calculate first RSI
-        if len <= self.period {
-            return Ok(result);
-        }
-
-        // Calculate price changes
-        let mut gains = Vec::with_capacity(len - 1);
-        let mut losses = Vec::with_capacity(len - 1);
-
-        for i in 1..len {
-            let change = data[i] - data[i - 1];
-            if change > 0.0 {
-                gains.push(change);
-                losses.push(0.0);
-            } else {
-                gains.push(0.0);
-                losses.push(-change); // Store as positive
-            }
-        }
-
-        // First average: simple mean of first `period` gains/losses
-        let mut avg_gain: f64 = gains[..self.period].iter().sum::<f64>() / self.period as f64;
-        let mut avg_loss: f64 = losses[..self.period].iter().sum::<f64>() / self.period as f64;
-
-        // Calculate first RSI (at index = period)
-        result[self.period] = calculate_rsi(avg_gain, avg_loss);
-
-        // Subsequent values use Wilder's smoothing
-        let alpha = 1.0 / self.period as f64;
-        for i in self.period..(len - 1) {
-            avg_gain = (avg_gain * (1.0 - alpha)) + (gains[i] * alpha);
-            avg_loss = (avg_loss * (1.0 - alpha)) + (losses[i] * alpha);
-            result[i + 1] = calculate_rsi(avg_gain, avg_loss);
-        }
-
-        Ok(result)
+        let mut stream = RsiStream::new(self.period)?;
+        collect_stream(&mut stream, data.len(), |index| data[index], || f64::NAN)
     }
 }
 

@@ -30,7 +30,7 @@
 //! - R close to 0: Weak correlation (sideways/noise)
 //! - R² indicates how much of the price movement is explained by the trend
 
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 
 /// Linear Regression output structure.
@@ -115,58 +115,35 @@ impl LinReg {
         self.num_std_dev
     }
 
-    /// Calculate linear regression statistics for a window of data.
-    fn calculate_regression(data: &[f64]) -> (f64, f64, f64, f64, f64) {
-        let n = data.len() as f64;
-
-        // X values are 0, 1, 2, ..., n-1
-        // Mean of x: (n-1)/2
+    /// Calculate regression statistics from rolling sums.
+    fn calculate_from_sums(
+        period: usize,
+        sum_y: f64,
+        sum_xy: f64,
+        sum_y2: f64,
+    ) -> (f64, f64, f64, f64, f64) {
+        let n = period as f64;
         let x_mean = (n - 1.0) / 2.0;
+        let sum_x = n * x_mean;
+        let sum_x2 = n * (n - 1.0) * (2.0 * n - 1.0) / 6.0;
+        let sum_xx_dev = sum_x2 - (sum_x * sum_x) / n;
+        let y_mean = sum_y / n;
+        let sum_xy_dev = sum_xy - sum_x * y_mean;
+        let sum_yy_dev = (sum_y2 - (sum_y * sum_y) / n).max(0.0);
 
-        // Mean of y
-        let y_mean = data.iter().sum::<f64>() / n;
-
-        // Calculate sums for regression
-        let mut sum_xy_dev = 0.0; // Σ((x - x̄)(y - ȳ))
-        let mut sum_xx_dev = 0.0; // Σ((x - x̄)²)
-        let mut sum_yy_dev = 0.0; // Σ((y - ȳ)²)
-
-        for (i, &y) in data.iter().enumerate() {
-            let x = i as f64;
-            let x_dev = x - x_mean;
-            let y_dev = y - y_mean;
-            sum_xy_dev += x_dev * y_dev;
-            sum_xx_dev += x_dev * x_dev;
-            sum_yy_dev += y_dev * y_dev;
-        }
-
-        // Slope and intercept
         let slope = if sum_xx_dev != 0.0 {
             sum_xy_dev / sum_xx_dev
         } else {
             0.0
         };
-        let intercept = y_mean - slope * x_mean;
-
-        // Regression value at the end of the window (x = n-1)
-        let value = slope * (n - 1.0) + intercept;
-
-        // Pearson's R
+        let value = y_mean + slope * x_mean;
         let r = if sum_xx_dev != 0.0 && sum_yy_dev != 0.0 {
-            sum_xy_dev / (sum_xx_dev * sum_yy_dev).sqrt()
+            (sum_xy_dev / (sum_xx_dev * sum_yy_dev).sqrt()).clamp(-1.0, 1.0)
         } else {
             0.0
         };
-
-        // Calculate standard deviation of residuals
-        let mut sum_residuals_sq = 0.0;
-        for (i, &y) in data.iter().enumerate() {
-            let x = i as f64;
-            let predicted = slope * x + intercept;
-            let residual = y - predicted;
-            sum_residuals_sq += residual * residual;
-        }
-        let std_dev = (sum_residuals_sq / n).sqrt();
+        let residual_sum = (sum_yy_dev - (sum_xy_dev * sum_xy_dev) / sum_xx_dev).max(0.0);
+        let std_dev = (residual_sum / n).sqrt();
 
         (value, slope, r, r * r, std_dev)
     }
@@ -174,38 +151,19 @@ impl LinReg {
 
 impl Indicator<&[f64], Vec<LinRegOutput>> for LinReg {
     fn calculate(&self, data: &[f64]) -> IndicatorResult<Vec<LinRegOutput>> {
-        let len = data.len();
-        let mut result = vec![LinRegOutput::nan(); len];
-
-        if len < self.period {
-            return Ok(result);
-        }
-
-        for i in (self.period - 1)..len {
-            let start = i + 1 - self.period;
-            let window = &data[start..=i];
-
-            let (value, slope, r, r_squared, std_dev) = Self::calculate_regression(window);
-
-            result[i] = LinRegOutput {
-                value,
-                upper: value + self.num_std_dev * std_dev,
-                lower: value - self.num_std_dev * std_dev,
-                slope,
-                r,
-                r_squared,
-            };
-        }
-
-        Ok(result)
+        let mut stream = LinRegStream::new(self.period, self.num_std_dev)?;
+        collect_stream(
+            &mut stream,
+            data.len(),
+            |index| data[index],
+            LinRegOutput::nan,
+        )
     }
 }
 
 /// Streaming Linear Regression calculator for real-time updates.
 ///
-/// Maintains a ring buffer for O(1) sliding window updates.
-/// Note: The full regression calculation is still O(period) per update,
-/// but data management is O(1).
+/// Maintains a ring buffer and rolling sums for O(1) sliding window updates.
 #[derive(Debug)]
 pub struct LinRegStream {
     period: usize,
@@ -213,6 +171,9 @@ pub struct LinRegStream {
     buffer: Vec<f64>,
     head: usize,
     count: usize,
+    sum_y: f64,
+    sum_xy: f64,
+    sum_y2: f64,
 }
 
 impl LinRegStream {
@@ -237,6 +198,9 @@ impl LinRegStream {
             buffer: vec![0.0; period],
             head: 0,
             count: 0,
+            sum_y: 0.0,
+            sum_xy: 0.0,
+            sum_y2: 0.0,
         })
     }
 
@@ -257,14 +221,17 @@ impl LinRegStream {
         self.num_std_dev
     }
 
-    /// Get data in correct order from ring buffer.
-    fn get_ordered_data(&self) -> Vec<f64> {
-        let mut data = Vec::with_capacity(self.period);
-        for i in 0..self.period {
-            let idx = (self.head + i) % self.period;
-            data.push(self.buffer[idx]);
+    fn output(&self) -> LinRegOutput {
+        let (value, slope, r, r_squared, std_dev) =
+            LinReg::calculate_from_sums(self.period, self.sum_y, self.sum_xy, self.sum_y2);
+        LinRegOutput {
+            value,
+            upper: value + self.num_std_dev * std_dev,
+            lower: value - self.num_std_dev * std_dev,
+            slope,
+            r,
+            r_squared,
         }
-        data
     }
 }
 
@@ -280,50 +247,39 @@ impl StreamingIndicator<f64, LinRegOutput> for LinRegStream {
     }
 
     fn next(&mut self, value: f64) -> Option<LinRegOutput> {
-        // Add to ring buffer
         if self.count < self.period {
+            let x = self.count as f64;
             self.buffer[self.count] = value;
+            self.sum_y += value;
+            self.sum_xy += x * value;
+            self.sum_y2 += value * value;
             self.count += 1;
 
             if self.count == self.period {
-                // Calculate first regression
-                let (reg_value, slope, r, r_squared, std_dev) =
-                    LinReg::calculate_regression(&self.buffer);
-
-                return Some(LinRegOutput {
-                    value: reg_value,
-                    upper: reg_value + self.num_std_dev * std_dev,
-                    lower: reg_value - self.num_std_dev * std_dev,
-                    slope,
-                    r,
-                    r_squared,
-                });
+                return Some(self.output());
             }
             return None;
         }
 
-        // Update ring buffer
+        let old = self.buffer[self.head];
+        let old_sum_y = self.sum_y;
+        self.sum_y = old_sum_y - old + value;
+        self.sum_xy =
+            self.sum_xy - (old_sum_y - old) + (self.period.saturating_sub(1) as f64) * value;
+        self.sum_y2 = self.sum_y2 - old * old + value * value;
         self.buffer[self.head] = value;
         self.head = (self.head + 1) % self.period;
 
-        // Get ordered data and calculate
-        let data = self.get_ordered_data();
-        let (reg_value, slope, r, r_squared, std_dev) = LinReg::calculate_regression(&data);
-
-        Some(LinRegOutput {
-            value: reg_value,
-            upper: reg_value + self.num_std_dev * std_dev,
-            lower: reg_value - self.num_std_dev * std_dev,
-            slope,
-            r,
-            r_squared,
-        })
+        Some(self.output())
     }
 
     fn reset(&mut self) {
         self.buffer.fill(0.0);
         self.head = 0;
         self.count = 0;
+        self.sum_y = 0.0;
+        self.sum_xy = 0.0;
+        self.sum_y2 = 0.0;
     }
 
     fn is_ready(&self) -> bool {

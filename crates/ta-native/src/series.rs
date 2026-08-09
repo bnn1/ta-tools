@@ -7,9 +7,54 @@ use ta_core::indicators::{
     Hma as CoreHma, HmaStream as CoreHmaStream, Rsi as CoreRsi, RsiStream as CoreRsiStream,
     Sma as CoreSma, SmaStream as CoreSmaStream, Wma as CoreWma, WmaStream as CoreWmaStream,
 };
-use ta_core::traits::{Indicator, StreamingIndicator};
+use ta_core::traits::{stream_into, Indicator, StreamingIndicator};
 
-use crate::error::{map_indicator_error, validate_finite, validate_no_infinite};
+use crate::error::{
+    copy_history_into, map_indicator_error, validate_finite, validate_no_infinite, validate_output,
+    validate_output_disjoint,
+};
+
+fn scalar_stream_into<I, Input, MakeInput>(
+    stream: &mut I,
+    len: usize,
+    make_input: MakeInput,
+    output: &mut [f64],
+) -> ta_core::types::IndicatorResult<()>
+where
+    I: StreamingIndicator<Input, f64>,
+    MakeInput: FnMut(usize) -> Input,
+{
+    stream_into(stream, len, make_input, |index, value| {
+        output[index] = value.unwrap_or(f64::NAN);
+    })
+}
+
+fn scalar_stream_into_with_history<I, Input, MakeInput>(
+    stream: &mut I,
+    len: usize,
+    make_input: MakeInput,
+    output: &mut [f64],
+    history: &mut Vec<f64>,
+) -> ta_core::types::IndicatorResult<()>
+where
+    I: StreamingIndicator<Input, f64>,
+    MakeInput: FnMut(usize) -> Input,
+{
+    stream_into(stream, len, make_input, |index, value| {
+        let value = value.unwrap_or(f64::NAN);
+        output[index] = value;
+        history.push(value);
+    })
+}
+
+fn scalar_next_into<I>(stream: &mut I, value: f64, output: &mut [f64]) -> Option<f64>
+where
+    I: StreamingIndicator<f64, f64>,
+{
+    let result = stream.next(value);
+    output[0] = result.unwrap_or(f64::NAN);
+    result
+}
 
 #[napi]
 pub fn sma(data: &[f64], period: u32) -> Result<Float64Array> {
@@ -20,9 +65,22 @@ pub fn sma(data: &[f64], period: u32) -> Result<Float64Array> {
     Ok(result.into())
 }
 
+#[napi(js_name = "smaInto")]
+pub fn sma_into(data: &[f64], period: u32, mut output: Float64Array) -> Result<()> {
+    let output = unsafe { output.as_mut() };
+    validate_finite(data)?;
+    validate_output(output, data.len(), "output")?;
+    validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+
+    let mut stream = CoreSmaStream::new(period as usize).map_err(map_indicator_error)?;
+    scalar_stream_into(&mut stream, data.len(), |index| data[index], output)
+        .map_err(map_indicator_error)
+}
+
 #[napi(js_name = "SmaStream")]
 pub struct NativeSmaStream {
     inner: CoreSmaStream,
+    history: Vec<f64>,
 }
 
 #[napi]
@@ -31,6 +89,7 @@ impl NativeSmaStream {
     pub fn new(period: u32) -> Result<Self> {
         Ok(Self {
             inner: CoreSmaStream::new(period as usize).map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
@@ -38,19 +97,67 @@ impl NativeSmaStream {
     pub fn init(&mut self, data: &[f64]) -> Result<Float64Array> {
         validate_finite(data)?;
 
-        Ok(self.inner.init(data).map_err(map_indicator_error)?.into())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(&mut self, data: &[f64], mut output: Float64Array) -> Result<()> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(data)?;
+        validate_output(output, data.len(), "output")?;
+        validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+        self.history.clear();
+        self.history.reserve(data.len());
+        scalar_stream_into_with_history(
+            &mut self.inner,
+            data.len(),
+            |index| data[index],
+            output,
+            &mut self.history,
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<f64>> {
         validate_finite(&[value])?;
 
-        Ok(self.inner.next(value))
+        let result = self.inner.next(value);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result)
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(&mut self, value: f64, mut output: Float64Array) -> Result<bool> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(&[value])?;
+        validate_output(output, 1, "output")?;
+        let result = scalar_next_into(&mut self.inner, value, output);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> Float64Array {
+        self.history.clone().into()
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(&self, output: Float64Array) -> Result<()> {
+        copy_history_into(&self.history, output)
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -75,9 +182,22 @@ pub fn ema(data: &[f64], period: u32) -> Result<Float64Array> {
         .into())
 }
 
+#[napi(js_name = "emaInto")]
+pub fn ema_into(data: &[f64], period: u32, mut output: Float64Array) -> Result<()> {
+    let output = unsafe { output.as_mut() };
+    validate_finite(data)?;
+    validate_output(output, data.len(), "output")?;
+    validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+
+    let mut stream = CoreEmaStream::new(period as usize).map_err(map_indicator_error)?;
+    scalar_stream_into(&mut stream, data.len(), |index| data[index], output)
+        .map_err(map_indicator_error)
+}
+
 #[napi(js_name = "EmaStream")]
 pub struct NativeEmaStream {
     inner: CoreEmaStream,
+    history: Vec<f64>,
 }
 
 #[napi]
@@ -86,24 +206,73 @@ impl NativeEmaStream {
     pub fn new(period: u32) -> Result<Self> {
         Ok(Self {
             inner: CoreEmaStream::new(period as usize).map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Float64Array> {
         validate_finite(data)?;
-        Ok(self.inner.init(data).map_err(map_indicator_error)?.into())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(&mut self, data: &[f64], mut output: Float64Array) -> Result<()> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(data)?;
+        validate_output(output, data.len(), "output")?;
+        validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+        self.history.clear();
+        self.history.reserve(data.len());
+        scalar_stream_into_with_history(
+            &mut self.inner,
+            data.len(),
+            |index| data[index],
+            output,
+            &mut self.history,
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<f64>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value))
+        let result = self.inner.next(value);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result)
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(&mut self, value: f64, mut output: Float64Array) -> Result<bool> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(&[value])?;
+        validate_output(output, 1, "output")?;
+        let result = scalar_next_into(&mut self.inner, value, output);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> Float64Array {
+        self.history.clone().into()
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(&self, output: Float64Array) -> Result<()> {
+        copy_history_into(&self.history, output)
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -138,9 +307,22 @@ pub fn wma(data: &[f64], period: u32) -> Result<Float64Array> {
         .into())
 }
 
+#[napi(js_name = "wmaInto")]
+pub fn wma_into(data: &[f64], period: u32, mut output: Float64Array) -> Result<()> {
+    let output = unsafe { output.as_mut() };
+    validate_finite(data)?;
+    validate_output(output, data.len(), "output")?;
+    validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+
+    let mut stream = CoreWmaStream::new(period as usize).map_err(map_indicator_error)?;
+    scalar_stream_into(&mut stream, data.len(), |index| data[index], output)
+        .map_err(map_indicator_error)
+}
+
 #[napi(js_name = "WmaStream")]
 pub struct NativeWmaStream {
     inner: CoreWmaStream,
+    history: Vec<f64>,
 }
 
 #[napi]
@@ -149,24 +331,73 @@ impl NativeWmaStream {
     pub fn new(period: u32) -> Result<Self> {
         Ok(Self {
             inner: CoreWmaStream::new(period as usize).map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Float64Array> {
         validate_finite(data)?;
-        Ok(self.inner.init(data).map_err(map_indicator_error)?.into())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(&mut self, data: &[f64], mut output: Float64Array) -> Result<()> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(data)?;
+        validate_output(output, data.len(), "output")?;
+        validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+        self.history.clear();
+        self.history.reserve(data.len());
+        scalar_stream_into_with_history(
+            &mut self.inner,
+            data.len(),
+            |index| data[index],
+            output,
+            &mut self.history,
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<f64>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value))
+        let result = self.inner.next(value);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result)
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(&mut self, value: f64, mut output: Float64Array) -> Result<bool> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(&[value])?;
+        validate_output(output, 1, "output")?;
+        let result = scalar_next_into(&mut self.inner, value, output);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> Float64Array {
+        self.history.clone().into()
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(&self, output: Float64Array) -> Result<()> {
+        copy_history_into(&self.history, output)
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -191,9 +422,22 @@ pub fn rsi(data: &[f64], period: u32) -> Result<Float64Array> {
         .into())
 }
 
+#[napi(js_name = "rsiInto")]
+pub fn rsi_into(data: &[f64], period: u32, mut output: Float64Array) -> Result<()> {
+    let output = unsafe { output.as_mut() };
+    validate_finite(data)?;
+    validate_output(output, data.len(), "output")?;
+    validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+
+    let mut stream = CoreRsiStream::new(period as usize).map_err(map_indicator_error)?;
+    scalar_stream_into(&mut stream, data.len(), |index| data[index], output)
+        .map_err(map_indicator_error)
+}
+
 #[napi(js_name = "RsiStream")]
 pub struct NativeRsiStream {
     inner: CoreRsiStream,
+    history: Vec<f64>,
 }
 
 #[napi]
@@ -202,24 +446,73 @@ impl NativeRsiStream {
     pub fn new(period: u32) -> Result<Self> {
         Ok(Self {
             inner: CoreRsiStream::new(period as usize).map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Float64Array> {
         validate_finite(data)?;
-        Ok(self.inner.init(data).map_err(map_indicator_error)?.into())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(&mut self, data: &[f64], mut output: Float64Array) -> Result<()> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(data)?;
+        validate_output(output, data.len(), "output")?;
+        validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+        self.history.clear();
+        self.history.reserve(data.len());
+        scalar_stream_into_with_history(
+            &mut self.inner,
+            data.len(),
+            |index| data[index],
+            output,
+            &mut self.history,
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<f64>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value))
+        let result = self.inner.next(value);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result)
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(&mut self, value: f64, mut output: Float64Array) -> Result<bool> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(&[value])?;
+        validate_output(output, 1, "output")?;
+        let result = scalar_next_into(&mut self.inner, value, output);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> Float64Array {
+        self.history.clone().into()
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(&self, output: Float64Array) -> Result<()> {
+        copy_history_into(&self.history, output)
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -249,9 +542,22 @@ pub fn hma(data: &[f64], period: u32) -> Result<Float64Array> {
         .into())
 }
 
+#[napi(js_name = "hmaInto")]
+pub fn hma_into(data: &[f64], period: u32, mut output: Float64Array) -> Result<()> {
+    let output = unsafe { output.as_mut() };
+    validate_finite(data)?;
+    validate_output(output, data.len(), "output")?;
+    validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+
+    let mut stream = CoreHmaStream::new(period as usize).map_err(map_indicator_error)?;
+    scalar_stream_into(&mut stream, data.len(), |index| data[index], output)
+        .map_err(map_indicator_error)
+}
+
 #[napi(js_name = "HmaStream")]
 pub struct NativeHmaStream {
     inner: CoreHmaStream,
+    history: Vec<f64>,
 }
 
 #[napi]
@@ -260,24 +566,73 @@ impl NativeHmaStream {
     pub fn new(period: u32) -> Result<Self> {
         Ok(Self {
             inner: CoreHmaStream::new(period as usize).map_err(map_indicator_error)?,
+            history: Vec::new(),
         })
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Float64Array> {
         validate_finite(data)?;
-        Ok(self.inner.init(data).map_err(map_indicator_error)?.into())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(&mut self, data: &[f64], mut output: Float64Array) -> Result<()> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(data)?;
+        validate_output(output, data.len(), "output")?;
+        validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+        self.history.clear();
+        self.history.reserve(data.len());
+        scalar_stream_into_with_history(
+            &mut self.inner,
+            data.len(),
+            |index| data[index],
+            output,
+            &mut self.history,
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<f64>> {
         validate_finite(&[value])?;
-        Ok(self.inner.next(value))
+        let result = self.inner.next(value);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result)
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(&mut self, value: f64, mut output: Float64Array) -> Result<bool> {
+        let output = unsafe { output.as_mut() };
+        validate_finite(&[value])?;
+        validate_output(output, 1, "output")?;
+        let result = scalar_next_into(&mut self.inner, value, output);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> Float64Array {
+        self.history.clone().into()
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(&self, output: Float64Array) -> Result<()> {
+        copy_history_into(&self.history, output)
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]
@@ -311,9 +666,22 @@ pub fn cvd(data: &[f64]) -> Result<Float64Array> {
     Ok(result.into())
 }
 
+#[napi(js_name = "cvdInto")]
+pub fn cvd_into(data: &[f64], mut output: Float64Array) -> Result<()> {
+    let output = unsafe { output.as_mut() };
+    validate_no_infinite(data, "data")?;
+    validate_output(output, data.len(), "output")?;
+    validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+
+    let mut stream = CoreCvdStream::new();
+    scalar_stream_into(&mut stream, data.len(), |index| data[index], output)
+        .map_err(map_indicator_error)
+}
+
 #[napi(js_name = "CvdStream")]
 pub struct NativeCvdStream {
     inner: CoreCvdStream,
+    history: Vec<f64>,
 }
 
 #[napi]
@@ -322,24 +690,73 @@ impl NativeCvdStream {
     pub fn new() -> Self {
         Self {
             inner: CoreCvdStream::new(),
+            history: Vec::new(),
         }
     }
 
     #[napi]
     pub fn init(&mut self, data: &[f64]) -> Result<Float64Array> {
         validate_no_infinite(data, "data")?;
-        Ok(self.inner.init(data).map_err(map_indicator_error)?.into())
+        let result = self.inner.init(data).map_err(map_indicator_error)?;
+        self.history = result.clone();
+        Ok(result.into())
+    }
+
+    #[napi(js_name = "initInto")]
+    pub fn init_into(&mut self, data: &[f64], mut output: Float64Array) -> Result<()> {
+        let output = unsafe { output.as_mut() };
+        validate_no_infinite(data, "data")?;
+        validate_output(output, data.len(), "output")?;
+        validate_output_disjoint(&[("output", output)], &[("data", data)])?;
+        self.history.clear();
+        self.history.reserve(data.len());
+        scalar_stream_into_with_history(
+            &mut self.inner,
+            data.len(),
+            |index| data[index],
+            output,
+            &mut self.history,
+        )
+        .map_err(map_indicator_error)
     }
 
     #[napi]
     pub fn next(&mut self, value: f64) -> Result<Option<f64>> {
         validate_no_infinite(&[value], "value")?;
-        Ok(self.inner.next(value))
+        let result = self.inner.next(value);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result)
+    }
+
+    #[napi(js_name = "nextInto")]
+    pub fn next_into(&mut self, value: f64, mut output: Float64Array) -> Result<bool> {
+        let output = unsafe { output.as_mut() };
+        validate_no_infinite(&[value], "value")?;
+        validate_output(output, 1, "output")?;
+        let result = scalar_next_into(&mut self.inner, value, output);
+        self.history.push(result.unwrap_or(f64::NAN));
+        Ok(result.is_some())
+    }
+
+    #[napi]
+    pub fn history(&self) -> Float64Array {
+        self.history.clone().into()
+    }
+
+    #[napi(getter)]
+    pub fn history_length(&self) -> u32 {
+        self.history.len() as u32
+    }
+
+    #[napi(js_name = "historyInto")]
+    pub fn history_into(&self, output: Float64Array) -> Result<()> {
+        copy_history_into(&self.history, output)
     }
 
     #[napi]
     pub fn reset(&mut self) {
         self.inner.reset();
+        self.history.clear();
     }
 
     #[napi(js_name = "isReady")]

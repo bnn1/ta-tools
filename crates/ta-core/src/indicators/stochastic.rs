@@ -65,7 +65,7 @@
 //! let output = stoch.next((128.22, 126.80, 127.50));
 //! ```
 
-use crate::traits::{Indicator, StreamingIndicator};
+use crate::traits::{collect_stream, Indicator, StreamingIndicator};
 use crate::types::{IndicatorError, IndicatorResult};
 use std::collections::VecDeque;
 
@@ -186,18 +186,6 @@ impl Stoch {
     pub const fn stoch_type(&self) -> StochType {
         self.stoch_type
     }
-
-    /// Calculate raw stochastic %K value.
-    #[inline]
-    fn raw_k(close: f64, lowest: f64, highest: f64) -> f64 {
-        let range = highest - lowest;
-        if range == 0.0 {
-            // Avoid division by zero - when high == low, return 50 (middle)
-            50.0
-        } else {
-            100.0 * (close - lowest) / range
-        }
-    }
 }
 
 /// Input type for Stochastic: (highs, lows, closes)
@@ -215,83 +203,18 @@ impl Indicator<&StochInput<'_>, Vec<StochOutput>> for Stoch {
             ));
         }
 
-        let mut result = vec![StochOutput::nan(); len];
-
-        if len == 0 {
-            return Ok(result);
-        }
-
-        // Calculate raw %K values for all valid points
-        let mut raw_k_values = vec![f64::NAN; len];
-
-        for i in (self.k_period - 1)..len {
-            let start = i + 1 - self.k_period;
-            let highest = highs[start..=i]
-                .iter()
-                .copied()
-                .fold(f64::NEG_INFINITY, f64::max);
-            let lowest = lows[start..=i]
-                .iter()
-                .copied()
-                .fold(f64::INFINITY, f64::min);
-            raw_k_values[i] = Self::raw_k(closes[i], lowest, highest);
-        }
-
-        match self.stoch_type {
-            StochType::Fast => {
-                // Fast: %K = raw %K, %D = SMA(%K, d_period)
-                // First valid %K at index k_period - 1
-                // First valid %D at index k_period - 1 + d_period - 1
-
-                for i in (self.k_period - 1)..len {
-                    let k = raw_k_values[i];
-
-                    // Calculate %D (SMA of %K)
-                    let d = if i >= self.k_period - 1 + self.d_period - 1 {
-                        let start = i + 1 - self.d_period;
-                        let sum: f64 = raw_k_values[start..=i].iter().sum();
-                        sum / self.d_period as f64
-                    } else {
-                        f64::NAN
-                    };
-
-                    result[i] = StochOutput { k, d };
-                }
-            }
-            StochType::Slow => {
-                // Slow: %K = SMA(raw %K, slowing), %D = SMA(%K, d_period)
-                let mut smoothed_k = vec![f64::NAN; len];
-
-                // First smoothed %K at index k_period - 1 + slowing - 1
-                let first_smoothed_idx = self.k_period - 1 + self.slowing - 1;
-
-                for i in first_smoothed_idx..len {
-                    let start = i + 1 - self.slowing;
-                    let sum: f64 = raw_k_values[start..=i].iter().sum();
-                    smoothed_k[i] = sum / self.slowing as f64;
-                }
-
-                // Now calculate %D as SMA of smoothed %K
-                // First valid %D at index first_smoothed_idx + d_period - 1
-                let first_d_idx = first_smoothed_idx + self.d_period - 1;
-
-                for i in first_smoothed_idx..len {
-                    let k = smoothed_k[i];
-
-                    let d = if i >= first_d_idx {
-                        let start = i + 1 - self.d_period;
-                        let sum: f64 = smoothed_k[start..=i].iter().sum();
-                        sum / self.d_period as f64
-                    } else {
-                        f64::NAN
-                    };
-
-                    result[i] = StochOutput { k, d };
-                }
-            }
-        }
-
-        Ok(result)
+        let mut stream = StochStream::new_with_slowing(
+            self.k_period,
+            self.d_period,
+            self.slowing,
+            self.stoch_type,
+        )?;
+        collect_stream(
+            &mut stream,
+            len,
+            |index| (highs[index], lows[index], closes[index]),
+            StochOutput::nan,
+        )
     }
 }
 
@@ -305,19 +228,17 @@ pub struct StochStream {
     slowing: usize,
     stoch_type: StochType,
 
-    // Ring buffer for high/low/close values
-    highs: VecDeque<f64>,
-    lows: VecDeque<f64>,
-
     // Monotonic deques for O(1) min/max
     max_deque: VecDeque<(usize, f64)>, // (index, value) for highest high
     min_deque: VecDeque<(usize, f64)>, // (index, value) for lowest low
 
     // Buffer for raw %K values (used for smoothing)
     raw_k_buffer: VecDeque<f64>,
+    raw_k_sum: f64,
 
     // Buffer for smoothed %K values (for slow stochastic)
     smoothed_k_buffer: VecDeque<f64>,
+    smoothed_k_sum: f64,
 
     // Current index counter
     index: usize,
@@ -369,12 +290,12 @@ impl StochStream {
             d_period,
             slowing,
             stoch_type,
-            highs: VecDeque::with_capacity(k_period),
-            lows: VecDeque::with_capacity(k_period),
             max_deque: VecDeque::with_capacity(k_period),
             min_deque: VecDeque::with_capacity(k_period),
             raw_k_buffer: VecDeque::with_capacity(d_period.max(slowing)),
+            raw_k_sum: 0.0,
             smoothed_k_buffer: VecDeque::with_capacity(d_period),
+            smoothed_k_sum: 0.0,
             index: 0,
             count: 0,
             initialized: false,
@@ -427,12 +348,6 @@ impl StochStream {
                 break;
             }
         }
-
-        // Update ring buffer
-        if self.highs.len() >= self.k_period {
-            self.highs.pop_front();
-        }
-        self.highs.push_back(high);
     }
 
     /// Add a new low value and update the min deque.
@@ -457,12 +372,6 @@ impl StochStream {
                 break;
             }
         }
-
-        // Update ring buffer
-        if self.lows.len() >= self.k_period {
-            self.lows.pop_front();
-        }
-        self.lows.push_back(low);
     }
 
     /// Calculate raw %K from current state.
@@ -516,13 +425,13 @@ impl StreamingIndicator<StochBar, StochOutput> for StochStream {
                 // Fast: %K = raw %K, %D = SMA(%K, d_period)
                 // We need to track raw_k values for %D calculation
                 if self.raw_k_buffer.len() >= self.d_period {
-                    self.raw_k_buffer.pop_front();
+                    self.raw_k_sum -= self.raw_k_buffer.pop_front().unwrap();
                 }
                 self.raw_k_buffer.push_back(raw_k);
+                self.raw_k_sum += raw_k;
 
                 let d = if self.raw_k_buffer.len() >= self.d_period {
-                    let sum: f64 = self.raw_k_buffer.iter().sum();
-                    sum / self.d_period as f64
+                    self.raw_k_sum / self.d_period as f64
                 } else {
                     f64::NAN
                 };
@@ -533,26 +442,28 @@ impl StreamingIndicator<StochBar, StochOutput> for StochStream {
                 // Slow: %K = SMA(raw %K, slowing), %D = SMA(%K, d_period)
                 // First, add raw_k to buffer for slowing calculation
                 if self.raw_k_buffer.len() >= self.slowing {
-                    self.raw_k_buffer.pop_front();
+                    self.raw_k_sum -= self.raw_k_buffer.pop_front().unwrap();
                 }
                 self.raw_k_buffer.push_back(raw_k);
+                self.raw_k_sum += raw_k;
 
                 // Calculate smoothed %K
                 if self.raw_k_buffer.len() < self.slowing {
                     return Some(StochOutput::nan());
                 }
 
-                let smoothed_k: f64 = self.raw_k_buffer.iter().sum::<f64>() / self.slowing as f64;
+                let smoothed_k = self.raw_k_sum / self.slowing as f64;
 
                 // Add smoothed %K to buffer for %D calculation
                 if self.smoothed_k_buffer.len() >= self.d_period {
-                    self.smoothed_k_buffer.pop_front();
+                    self.smoothed_k_sum -= self.smoothed_k_buffer.pop_front().unwrap();
                 }
                 self.smoothed_k_buffer.push_back(smoothed_k);
+                self.smoothed_k_sum += smoothed_k;
 
                 // Calculate %D
                 let d = if self.smoothed_k_buffer.len() >= self.d_period {
-                    self.smoothed_k_buffer.iter().sum::<f64>() / self.d_period as f64
+                    self.smoothed_k_sum / self.d_period as f64
                 } else {
                     f64::NAN
                 };
@@ -563,12 +474,12 @@ impl StreamingIndicator<StochBar, StochOutput> for StochStream {
     }
 
     fn reset(&mut self) {
-        self.highs.clear();
-        self.lows.clear();
         self.max_deque.clear();
         self.min_deque.clear();
         self.raw_k_buffer.clear();
+        self.raw_k_sum = 0.0;
         self.smoothed_k_buffer.clear();
+        self.smoothed_k_sum = 0.0;
         self.index = 0;
         self.count = 0;
         self.initialized = false;
